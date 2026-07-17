@@ -49,7 +49,7 @@
     .screen { display: none; }
     .screen.show { display: block; }
 
-    /* PAIRS TABLE */
+    /* GROUPS TABLE */
     .card { background: var(--dark2); border: 1px solid rgba(255,255,255,0.07); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
     .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
     .card-title { font-size: 15px; font-weight: 700; }
@@ -62,6 +62,10 @@
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: rgba(255,255,255,0.02); }
 
+    /* MEMBERS */
+    .members-wrap { display: flex; flex-direction: column; gap: 2px; }
+    .member-email { font-size: 12px; color: var(--muted); }
+
     /* PROGRESS BAR */
     .prog-wrap { display: flex; align-items: center; gap: 8px; min-width: 140px; }
     .prog-bar { flex: 1; height: 6px; background: var(--dark4); border-radius: 3px; overflow: hidden; }
@@ -71,9 +75,8 @@
     /* CONTRIBUTION PILLS */
     .contrib-wrap { display: flex; gap: 4px; flex-wrap: wrap; }
     .contrib-pill { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 600; white-space: nowrap; }
-    .pill-s1   { background: rgba(59,130,246,0.15); color: var(--blue-light); }
-    .pill-s2   { background: rgba(20,184,166,0.15); color: var(--teal); }
-    .pill-pair { background: rgba(139,92,246,0.15); color: var(--purple-light); }
+    .pill-member { background: rgba(59,130,246,0.15); color: var(--blue-light); }
+    .pill-pair   { background: rgba(139,92,246,0.15); color: var(--purple-light); }
 
     /* LAST ACTIVE */
     .la-recent { color: var(--success); font-size: 12px; }
@@ -109,11 +112,13 @@
     input:checked + .toggle-slider { background: var(--success); }
     input:checked + .toggle-slider:before { transform: translateX(-20px); }
 
-    /* ADD PAIR FORM */
+    /* ADD GROUP FORM */
     .form-group { margin-bottom: 14px; }
     label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
-    input[type=text], input[type=email], select { width: 100%; padding: 10px 12px; background: var(--dark3); border: 1px solid rgba(255,255,255,0.07); border-radius: 9px; color: var(--text); font-family: 'Heebo', sans-serif; font-size: 13px; outline: none; direction: rtl; }
-    input:focus, select:focus { border-color: rgba(20,184,166,0.4); }
+    .form-hint { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    input[type=text], input[type=email], select, textarea { width: 100%; padding: 10px 12px; background: var(--dark3); border: 1px solid rgba(255,255,255,0.07); border-radius: 9px; color: var(--text); font-family: 'Heebo', sans-serif; font-size: 13px; outline: none; direction: rtl; }
+    textarea { resize: vertical; min-height: 60px; }
+    input:focus, select:focus, textarea:focus { border-color: rgba(20,184,166,0.4); }
 
     /* MODAL */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; display: none; align-items: center; justify-content: center; padding: 24px; }
@@ -124,6 +129,14 @@
     .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
     .btn-modal-cancel { padding: 9px 16px; background: transparent; border: 1px solid rgba(255,255,255,0.15); border-radius: 9px; color: var(--muted); font-family: 'Heebo', sans-serif; font-size: 13px; cursor: pointer; }
     .btn-modal-confirm { padding: 9px 16px; background: var(--teal); border: none; border-radius: 9px; color: white; font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
+
+    /* MEMBERS EDITOR (in modal) */
+    .member-row { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; background: var(--dark3); border-radius: 8px; margin-bottom: 6px; }
+    .member-row-email { font-size: 12px; }
+    .member-remove { background: transparent; border: none; color: var(--error); cursor: pointer; font-size: 13px; }
+    .add-member-row { display: flex; gap: 6px; margin-top: 8px; }
+    .add-member-row input { flex: 1; }
+    .add-member-row button { padding: 8px 14px; background: var(--teal); border: none; border-radius: 8px; color: white; font-family: 'Heebo', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 
     /* SECTIONS DETAIL */
     .sections-detail { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 14px; }
@@ -161,7 +174,7 @@
 <div class="main">
 
   <div class="stats-row">
-    <div class="stat-card"><div class="stat-num" style="color:var(--blue-light)" id="stPairs">—</div><div class="stat-label">זוגות</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--blue-light)" id="stGroups">—</div><div class="stat-label">קבוצות</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--teal)" id="stAvg">—</div><div class="stat-label">התקדמות ממוצעת</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--success)" id="stDone">—</div><div class="stat-label">סיימו</div></div>
     <div class="stat-card"><div class="stat-num" style="color:var(--warning)" id="stInProgress">—</div><div class="stat-label">בתהליך</div></div>
@@ -169,19 +182,19 @@
   </div>
 
   <div class="tabs-row">
-    <button class="tab-btn active" onclick="switchTab('pairs', this)">זוגות</button>
+    <button class="tab-btn active" onclick="switchTab('groups', this)">קבוצות</button>
     <button class="tab-btn" onclick="switchTab('units', this)">יחידות לימוד</button>
-    <button class="tab-btn" onclick="switchTab('addpair', this)">+ הוסף זוג</button>
+    <button class="tab-btn" onclick="switchTab('addgroup', this)">+ הוסף קבוצה</button>
   </div>
 
-  <!-- זוגות -->
-  <div class="screen show" id="tab-pairs">
+  <!-- קבוצות -->
+  <div class="screen show" id="tab-groups">
     <div class="card">
       <div class="card-header">
-        <div class="card-title">כל הזוגות</div>
+        <div class="card-title">כל הקבוצות</div>
         <div style="display:flex;gap:8px;align-items:center;">
-          <input class="search-input" type="text" placeholder="חיפוש..." oninput="filterPairs(this.value)" />
-          <select id="filterStatus" style="width:120px;padding:7px 10px;" onchange="filterPairs(document.querySelector('.search-input').value)">
+          <input class="search-input" type="text" placeholder="חיפוש..." oninput="filterGroups(this.value)" />
+          <select id="filterStatus" style="width:120px;padding:7px 10px;" onchange="filterGroups(document.querySelector('.search-input').value)">
             <option value="">כולם</option>
             <option value="active">פעילים</option>
             <option value="stuck">תקועים</option>
@@ -193,9 +206,9 @@
         <table>
           <thead>
             <tr>
+              <th>קבוצה</th>
               <th>אתר</th>
-              <th>תלמיד 1</th>
-              <th>תלמיד 2</th>
+              <th>חברים</th>
               <th>סעיפים</th>
               <th>התקדמות</th>
               <th>תרומה</th>
@@ -203,7 +216,7 @@
               <th></th>
             </tr>
           </thead>
-          <tbody id="pairsBody">
+          <tbody id="groupsBody">
             <tr><td colspan="8" class="empty-state"><span class="loading-spinner"></span> טוען...</td></tr>
           </tbody>
         </table>
@@ -224,27 +237,31 @@
     </div>
   </div>
 
-  <!-- הוספת זוג -->
-  <div class="screen" id="tab-addpair">
+  <!-- הוספת קבוצה -->
+  <div class="screen" id="tab-addgroup">
     <div class="card" style="max-width:500px;">
-      <div class="card-title" style="margin-bottom:20px;">הוספת זוג חדש</div>
-      <div class="form-group"><label>מייל תלמיד 1</label><input type="email" id="s1Email" placeholder="student1@gmail.com" /></div>
-      <div class="form-group"><label>מייל תלמיד 2 (אופציונלי)</label><input type="email" id="s2Email" placeholder="student2@gmail.com" /></div>
-      <div class="form-group"><label>כיתה</label><input type="text" id="pairClass" placeholder="י1" /></div>
-      <button class="btn-sm btn-primary" style="padding:10px 20px;" onclick="addPair()">צור זוג</button>
-      <div id="addPairResult" style="margin-top:12px;font-size:13px;"></div>
+      <div class="card-title" style="margin-bottom:20px;">הוספת קבוצה חדשה</div>
+      <div class="form-group"><label>שם הקבוצה</label><input type="text" id="groupName" placeholder="לדוגמה: דנה ויוסי, או הכותל המערבי" /></div>
+      <div class="form-group">
+        <label>מיילים של חברי הקבוצה</label>
+        <textarea id="groupMembers" placeholder="student1@gmail.com, student2@gmail.com"></textarea>
+        <div class="form-hint">אפשר תלמיד יחיד, זוג, או קבוצה גדולה יותר — מייל אחד או יותר, מופרדים בפסיק.</div>
+      </div>
+      <div class="form-group"><label>כיתה</label><input type="text" id="groupClass" placeholder="י1" /></div>
+      <button class="btn-sm btn-primary" style="padding:10px 20px;" onclick="addGroup()">צור קבוצה</button>
+      <div id="addGroupResult" style="margin-top:12px;font-size:13px;"></div>
     </div>
   </div>
 
 </div>
 
-<!-- מודל פרטי זוג -->
-<div class="modal-overlay" id="pairModal">
+<!-- מודל פרטי קבוצה -->
+<div class="modal-overlay" id="groupModal">
   <div class="modal">
-    <div class="modal-title" id="pairModalTitle">פרטי זוג</div>
-    <div id="pairModalContent"></div>
+    <div class="modal-title" id="groupModalTitle">פרטי קבוצה</div>
+    <div id="groupModalContent"></div>
     <div class="modal-footer">
-      <button class="btn-modal-cancel" onclick="hideModal('pairModal')">סגור</button>
+      <button class="btn-modal-cancel" onclick="hideModal('groupModal')">סגור</button>
     </div>
   </div>
 </div>
@@ -289,7 +306,7 @@ const SECTION_NAMES = ['','פרטי האתר','תיאור כללי','נוכחו�
 const SECTION_ICONS = ['','📍','📄','📱','📚','🖥️','💪','💡','✍️'];
 
 let currentUser = null;
-let allPairs    = [];
+let allGroups   = [];
 let allUnits    = [];
 
 window.onload = async function() {
@@ -310,102 +327,102 @@ async function callAPI(action, params = {}) {
 async function loadData() {
   try {
     const data = await callAPI('getTeacherDashboard');
-    allPairs   = data.pairs || [];
+    allGroups  = data.groups || [];
     allUnits   = data.units || [];
     renderStats();
-    renderPairs(allPairs);
+    renderGroups(allGroups);
     renderUnits();
   } catch(e) {
-    document.getElementById('pairsBody').innerHTML = '<tr><td colspan="8" class="empty-state">שגיאה: ' + e.message + '</td></tr>';
+    document.getElementById('groupsBody').innerHTML = '<tr><td colspan="8" class="empty-state">שגיאה: ' + e.message + '</td></tr>';
   }
 }
 
 function renderStats() {
-  const total      = allPairs.length;
-  const avg        = total ? Math.round(allPairs.reduce((s, p) => s + p.percent, 0) / total) : 0;
-  const done       = allPairs.filter(p => p.percent === 100).length;
-  const inProgress = allPairs.filter(p => p.percent > 0 && p.percent < 100).length;
-  const stuck      = allPairs.filter(p => {
-    if (!p.last_active) return true;
-    return Date.now() - new Date(p.last_active).getTime() > 7 * 24 * 60 * 60 * 1000;
+  const total      = allGroups.length;
+  const avg        = total ? Math.round(allGroups.reduce((s, g) => s + g.percent, 0) / total) : 0;
+  const done       = allGroups.filter(g => g.percent === 100).length;
+  const inProgress = allGroups.filter(g => g.percent > 0 && g.percent < 100).length;
+  const stuck      = allGroups.filter(g => {
+    if (!g.last_active) return true;
+    return Date.now() - new Date(g.last_active).getTime() > 7 * 24 * 60 * 60 * 1000;
   }).length;
-  document.getElementById('stPairs').textContent      = total;
+  document.getElementById('stGroups').textContent    = total;
   document.getElementById('stAvg').textContent        = avg + '%';
   document.getElementById('stDone').textContent       = done;
   document.getElementById('stInProgress').textContent = inProgress;
   document.getElementById('stStuck').textContent      = stuck;
 }
 
-function renderPairs(pairs) {
-  const tbody = document.getElementById('pairsBody');
-  if (!pairs.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty-state">אין זוגות — הוסף מהטאב "הוסף זוג"</td></tr>'; return; }
+function renderGroups(groups) {
+  const tbody = document.getElementById('groupsBody');
+  if (!groups.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty-state">אין קבוצות — הוסף מהטאב "הוסף קבוצה"</td></tr>'; return; }
 
-  tbody.innerHTML = pairs.map(p => {
-    // סרגל התקדמות
-    const prog = `<div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${p.percent}%"></div></div><div class="prog-pct">${p.percent}%</div></div>`;
+  tbody.innerHTML = groups.map(g => {
+    const prog = `<div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${g.percent}%"></div></div><div class="prog-pct">${g.percent}%</div></div>`;
 
-    // נקודות סעיפים
-    const cur = parseInt(p.current_section) || 1;
+    const cur = parseInt(g.current_section) || 1;
     const dots = Array.from({length:8},(_,i)=>{
       const n = i+1;
       const cls = n < cur ? 'done' : n === cur ? 'current' : 'empty';
-      const txt = n < cur ? '✓' : n === cur ? String(n) : String(n);
+      const txt = n < cur ? '✓' : String(n);
       return `<div class="sec-dot ${cls}" title="סעיף ${n}: ${SECTION_NAMES[n]}">${txt}</div>`;
     }).join('');
 
-    // תרומה
-    const c = p.contribution || {student1:0,student2:0,pair:0};
+    const members = g.members || [];
+    const c = g.contribution || {};
     const contrib = `<div class="contrib-wrap">
-      <span class="contrib-pill pill-s1">ת1:${c.student1}%</span>
-      <span class="contrib-pill pill-s2">ת2:${c.student2}%</span>
-      <span class="contrib-pill pill-pair">זוג:${c.pair}%</span>
+      ${members.map(m => `<span class="contrib-pill pill-member">${m.split('@')[0]}:${c[m]||0}%</span>`).join('')}
+      <span class="contrib-pill pill-pair">ביחד:${c.pair||0}%</span>
     </div>`;
 
-    // פעילות
-    const diff = p.last_active ? Date.now() - new Date(p.last_active).getTime() : Infinity;
+    const membersHtml = `<div class="members-wrap">${members.map(m => `<span class="member-email">${m}</span>`).join('') || '—'}</div>`;
+
+    const diff = g.last_active ? Date.now() - new Date(g.last_active).getTime() : Infinity;
     const days = Math.floor(diff / 86400000);
     const hrs  = Math.floor(diff / 3600000);
     const mins = Math.floor(diff / 60000);
-    const laText = !p.last_active ? 'לא פעיל' : mins < 60 ? 'לפני '+mins+' דק\'' : hrs < 24 ? 'לפני '+hrs+' שע\'' : 'לפני '+days+' ימים';
-    const laCls  = !p.last_active ? 'la-none' : days > 7 ? 'la-old' : days > 2 ? 'la-mid' : 'la-recent';
-
-    const s1 = p.student1_email ? p.student1_email.split('@')[0] : '—';
-    const s2 = p.student2_email ? p.student2_email.split('@')[0] : '—';
+    const laText = !g.last_active ? 'לא פעיל' : mins < 60 ? 'לפני '+mins+' דק\'' : hrs < 24 ? 'לפני '+hrs+' שע\'' : 'לפני '+days+' ימים';
+    const laCls  = !g.last_active ? 'la-none' : days > 7 ? 'la-old' : days > 2 ? 'la-mid' : 'la-recent';
 
     return `<tr>
-      <td><strong>${p.site_name || '—'}</strong>${p.site_url ? '<br><a href="'+p.site_url+'" target="_blank" style="font-size:11px;color:var(--blue-light);">🔗 קישור</a>' : ''}</td>
-      <td>${s1}</td>
-      <td>${s2}</td>
+      <td><strong>${g.group_name || g.group_id}</strong></td>
+      <td>${g.site_name || '—'}${g.site_url ? '<br><a href="'+g.site_url+'" target="_blank" style="font-size:11px;color:var(--blue-light);">🔗 קישור</a>' : ''}</td>
+      <td>${membersHtml}</td>
       <td><div class="sections-mini">${dots}</div></td>
       <td>${prog}</td>
       <td>${contrib}</td>
       <td><span class="${laCls}">${days > 7 ? '⚠️ ' : ''}${laText}</span></td>
-      <td><button class="btn-sm btn-back" onclick="openPairModal('${p.pair_id}')">פרטים</button></td>
+      <td><button class="btn-sm btn-back" onclick="openGroupModal('${g.group_id}')">פרטים</button></td>
     </tr>`;
   }).join('');
 }
 
-function filterPairs(q) {
+function filterGroups(q) {
   const status = document.getElementById('filterStatus').value;
-  let filtered = allPairs;
-  if (q) filtered = filtered.filter(p => (p.site_name||'').includes(q) || (p.student1_email||'').includes(q) || (p.student2_email||'').includes(q));
-  if (status === 'done')   filtered = filtered.filter(p => p.percent === 100);
-  if (status === 'stuck')  filtered = filtered.filter(p => { const d = p.last_active ? (Date.now()-new Date(p.last_active).getTime())/86400000 : 999; return d > 7; });
-  if (status === 'active') filtered = filtered.filter(p => { const d = p.last_active ? (Date.now()-new Date(p.last_active).getTime())/86400000 : 999; return d <= 7 && p.percent < 100; });
-  renderPairs(filtered);
+  let filtered = allGroups;
+  if (q) filtered = filtered.filter(g =>
+    (g.site_name||'').includes(q) ||
+    (g.group_name||'').includes(q) ||
+    (g.members||[]).some(m => m.includes(q))
+  );
+  if (status === 'done')   filtered = filtered.filter(g => g.percent === 100);
+  if (status === 'stuck')  filtered = filtered.filter(g => { const d = g.last_active ? (Date.now()-new Date(g.last_active).getTime())/86400000 : 999; return d > 7; });
+  if (status === 'active') filtered = filtered.filter(g => { const d = g.last_active ? (Date.now()-new Date(g.last_active).getTime())/86400000 : 999; return d <= 7 && g.percent < 100; });
+  renderGroups(filtered);
 }
 
-async function openPairModal(pair_id) {
-  const pair = allPairs.find(p => p.pair_id === pair_id);
-  if (!pair) return;
-  document.getElementById('pairModalTitle').textContent = (pair.site_name || 'זוג') + ' — פרטים';
-  document.getElementById('pairModalContent').innerHTML = '<div class="empty-state"><span class="loading-spinner"></span></div>';
-  showModal('pairModal');
+async function openGroupModal(group_id) {
+  const group = allGroups.find(g => g.group_id === group_id);
+  if (!group) return;
+  document.getElementById('groupModalTitle').textContent = (group.group_name || 'קבוצה') + ' — פרטים';
+  document.getElementById('groupModalContent').innerHTML = '<div class="empty-state"><span class="loading-spinner"></span></div>';
+  showModal('groupModal');
 
   try {
-    const data = await callAPI('getPairData', { pair_id });
+    const data = await callAPI('getGroupData', { group_id });
     const sections = data.sections || {};
-    const c = data.contribution || {student1:0, student2:0, pair:0};
+    const members  = data.group.members || [];
+    const c = data.contribution || {};
 
     const secCells = Array.from({length:8},(_,i)=>{
       const n = i+1;
@@ -417,21 +434,51 @@ async function openPairModal(pair_id) {
       </div>`;
     }).join('');
 
-    document.getElementById('pairModalContent').innerHTML = `
-      ${pair.site_url ? '<a href="'+pair.site_url+'" target="_blank" style="color:var(--blue-light);font-size:13px;display:block;margin-bottom:14px;">🔗 '+pair.site_url+'</a>' : ''}
+    document.getElementById('groupModalContent').innerHTML = `
+      ${group.site_url ? '<a href="'+group.site_url+'" target="_blank" style="color:var(--blue-light);font-size:13px;display:block;margin-bottom:14px;">🔗 '+group.site_url+'</a>' : ''}
       <div class="sections-detail">${secCells}</div>
       <div style="margin-top:16px;padding:14px;background:var(--dark3);border-radius:10px;">
         <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;">תרומה לפרויקט</div>
         <div class="contrib-wrap">
-          <span class="contrib-pill pill-s1" style="font-size:12px;padding:4px 10px;">תלמיד 1 (solo): ${c.student1}%</span>
-          <span class="contrib-pill pill-s2" style="font-size:12px;padding:4px 10px;">תלמיד 2 (solo): ${c.student2}%</span>
-          <span class="contrib-pill pill-pair" style="font-size:12px;padding:4px 10px;">ביחד: ${c.pair}%</span>
+          ${members.map(m => `<span class="contrib-pill pill-member" style="font-size:12px;padding:4px 10px;">${m} (solo): ${c[m]||0}%</span>`).join('')}
+          <span class="contrib-pill pill-pair" style="font-size:12px;padding:4px 10px;">ביחד: ${c.pair||0}%</span>
+        </div>
+      </div>
+      <div style="margin-top:16px;">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px;">חברי הקבוצה</div>
+        <div id="memberList">${members.map(m => `
+          <div class="member-row">
+            <span class="member-row-email">${m}</span>
+            <button class="member-remove" onclick="removeMember('${group_id}','${m}')">✕ הסר</button>
+          </div>`).join('')}</div>
+        <div class="add-member-row">
+          <input type="email" id="newMemberEmail" placeholder="מייל תלמיד חדש" />
+          <button onclick="addMember('${group_id}')">הוסף</button>
         </div>
       </div>
     `;
   } catch(e) {
-    document.getElementById('pairModalContent').innerHTML = '<div class="empty-state">שגיאה: ' + e.message + '</div>';
+    document.getElementById('groupModalContent').innerHTML = '<div class="empty-state">שגיאה: ' + e.message + '</div>';
   }
+}
+
+async function addMember(group_id) {
+  const email = document.getElementById('newMemberEmail').value.trim();
+  if (!email) return;
+  try {
+    await callAPI('addMember', { group_id, member_email: email });
+    await loadData();
+    openGroupModal(group_id);
+  } catch(e) { alert('שגיאה: ' + e.message); }
+}
+
+async function removeMember(group_id, email) {
+  if (!confirm('להסיר את ' + email + ' מהקבוצה?')) return;
+  try {
+    await callAPI('removeMember', { group_id, member_email: email });
+    await loadData();
+    openGroupModal(group_id);
+  } catch(e) { alert('שגיאה: ' + e.message); }
 }
 
 function renderUnits() {
@@ -474,19 +521,19 @@ async function createUnit() {
   } catch(e) { alert('שגיאה: ' + e.message); }
 }
 
-async function addPair() {
-  const s1    = document.getElementById('s1Email').value.trim();
-  const s2    = document.getElementById('s2Email').value.trim();
-  const cls   = document.getElementById('pairClass').value.trim();
-  const resEl = document.getElementById('addPairResult');
-  if (!s1) { resEl.textContent = 'נא להכניס מייל תלמיד 1'; resEl.style.color = 'var(--error)'; return; }
-  resEl.textContent = 'יוצר זוג...'; resEl.style.color = 'var(--muted)';
+async function addGroup() {
+  const name    = document.getElementById('groupName').value.trim();
+  const members = document.getElementById('groupMembers').value.trim();
+  const cls     = document.getElementById('groupClass').value.trim();
+  const resEl   = document.getElementById('addGroupResult');
+  if (!members) { resEl.textContent = 'נא להכניס לפחות מייל אחד'; resEl.style.color = 'var(--error)'; return; }
+  resEl.textContent = 'יוצר קבוצה...'; resEl.style.color = 'var(--muted)';
   try {
-    await callAPI('addPair', { student1_email: s1, student2_email: s2, class_id: cls });
-    resEl.textContent = '✅ הזוג נוצר בהצלחה!'; resEl.style.color = 'var(--success)';
-    document.getElementById('s1Email').value = '';
-    document.getElementById('s2Email').value = '';
-    document.getElementById('pairClass').value = '';
+    await callAPI('addGroup', { group_name: name, members, class_id: cls });
+    resEl.textContent = '✅ הקבוצה נוצרה בהצלחה!'; resEl.style.color = 'var(--success)';
+    document.getElementById('groupName').value = '';
+    document.getElementById('groupMembers').value = '';
+    document.getElementById('groupClass').value = '';
     await loadData();
   } catch(e) { resEl.textContent = 'שגיאה: ' + e.message; resEl.style.color = 'var(--error)'; }
 }

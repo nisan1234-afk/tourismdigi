@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>תיירות דיגיטלית — עבודת הזוג</title>
+  <title>תיירות דיגיטלית — עבודת הקבוצה</title>
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -146,7 +146,7 @@
 
     <div class="partner-status">
       <div class="partner-dot" id="partnerDot"></div>
-      <div class="partner-name" id="partnerLabel">שותף: טוען...</div>
+      <div class="partner-name" id="partnerLabel">חברי הקבוצה: טוען...</div>
     </div>
 
     <div class="sidebar-title">הסעיפים</div>
@@ -217,7 +217,7 @@ const SECTIONS = [
 ];
 
 let currentUser   = null;
-let pairData      = null;
+let groupData     = null;
 let currentSection = 1;
 let sectionContent = {};
 let saveTimer      = null;
@@ -229,7 +229,7 @@ window.onload = async function() {
   currentUser = JSON.parse(stored);
 
   const startSection = parseInt(sessionStorage.getItem('currentSection')) || 1;
-  await loadPairData();
+  await loadGroupData();
   navigateTo(startSection);
 };
 
@@ -240,22 +240,23 @@ async function callAPI(action, params = {}) {
   return data.data;
 }
 
-async function loadPairData() {
+async function loadGroupData() {
   try {
     const dashData = await callAPI('getTeacherDashboard');
-    const pairs    = dashData.pairs || [];
+    const groups   = dashData.groups || [];
     const email    = currentUser.email;
-    const myPair   = pairs.find(p => p.student1_email === email || p.student2_email === email);
-    if (!myPair) throw new Error('לא שויכת לזוג');
+    const myGroup  = groups.find(g => (g.members || []).some(m => m.toLowerCase() === email.toLowerCase()));
+    if (!myGroup) throw new Error('לא שויכת לקבוצה');
 
-    const detail = await callAPI('getPairData', { pair_id: myPair.pair_id });
-    pairData = { ...myPair, ...detail };
+    const detail = await callAPI('getGroupData', { group_id: myGroup.group_id });
+    groupData = { ...myGroup, ...detail.group };
     sectionContent = detail.sections || {};
 
-    // שותף
-    const isS1 = myPair.student1_email === email;
-    const partner = isS1 ? myPair.student2_email : myPair.student1_email;
-    document.getElementById('partnerLabel').textContent = 'שותף: ' + (partner ? partner.split('@')[0] : 'לא משויך');
+    // חברי הקבוצה מלבדי
+    const others = (groupData.members || []).filter(m => m.toLowerCase() !== email.toLowerCase());
+    document.getElementById('partnerLabel').textContent = others.length
+      ? 'חברי הקבוצה: ' + others.map(m => m.split('@')[0]).join(', ')
+      : 'עובד/ת לבד בקבוצה זו';
 
     renderSectionNav();
     updateProgress();
@@ -266,7 +267,7 @@ async function loadPairData() {
 
 function renderSectionNav() {
   const nav = document.getElementById('sectionNav');
-  const cur = parseInt(pairData.current_section) || 1;
+  const cur = parseInt(groupData.current_section) || 1;
 
   nav.innerHTML = SECTIONS.map(s => {
     const isDone    = sectionContent['section_'+s.num] ? true : false;
@@ -308,7 +309,7 @@ function navigateTo(num) {
     </div>
   `).join('');
 
-  const cur = parseInt(pairData.current_section) || 1;
+  const cur = parseInt(groupData.current_section) || 1;
   const isLocked = num > cur;
 
   document.getElementById('sectionContent').innerHTML = `
@@ -342,7 +343,7 @@ function onFieldChange() {
 }
 
 async function saveSection(auto = false) {
-  if (!pairData) return;
+  if (!groupData) return;
   const sec = SECTIONS[currentSection - 1];
   const data = {};
   sec.fields.forEach(f => {
@@ -355,7 +356,7 @@ async function saveSection(auto = false) {
 
   try {
     await callAPI('saveSection', {
-      pair_id:      pairData.pair_id,
+      group_id:     groupData.group_id,
       section_num:  currentSection,
       content:      JSON.stringify(data),
       device_id:    navigator.userAgent.slice(0,50)
