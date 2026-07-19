@@ -123,8 +123,11 @@
     .files-upload-btn { width: 100%; padding: 9px; background: var(--teal); border: none; border-radius: 8px; color: white; font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; }
     .files-status { font-size: 11px; color: var(--muted); margin-top: 6px; }
 
+    #backupPanel { left: 712px; }
+
     @media (max-width: 768px) {
       .files-panel { left: 16px; bottom: 24px; width: calc(100% - 32px); }
+      #backupPanel { left: 16px; }
     }
 
     /* LESSONS BUTTON + MODAL */
@@ -265,6 +268,7 @@
 
     <button class="lessons-btn" onclick="openLessons()">📚 השיעורים שלי</button>
     <button class="files-btn" onclick="toggleFiles()">📎 קבצים</button>
+    <button class="files-btn" onclick="toggleBackup()">💾 גיבוי ושחזור</button>
     <button class="chatbot-btn" onclick="toggleChatbot()">🤖 עזרה מהבוט</button>
   </div>
 
@@ -335,6 +339,25 @@
     <input type="file" id="fileInput" />
     <button class="files-upload-btn" onclick="uploadSelectedFile()">העלה קובץ</button>
     <div class="files-status" id="filesStatus"></div>
+  </div>
+</div>
+
+<!-- גיבוי ושחזור -->
+<div class="files-panel" id="backupPanel">
+  <div class="files-header">
+    <div class="files-title">💾 גיבוי ושחזור</div>
+    <button class="files-close" onclick="toggleBackup()">×</button>
+  </div>
+  <div style="padding:14px 16px;">
+    <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px;">שליחת גיבוי למייל</div>
+    <input class="field-input" id="backupEmailInput" type="email" placeholder="כתובת המייל שלכם" />
+    <button class="files-upload-btn" style="margin-top:8px;" onclick="sendBackup()">📧 שלח לי גיבוי</button>
+    <div class="files-status" id="backupSendStatus"></div>
+
+    <div style="font-size:12px;font-weight:700;color:var(--muted);margin:18px 0 8px;">שחזור מקובץ גיבוי</div>
+    <input type="file" id="backupFileInput" accept="application/json" />
+    <button class="files-upload-btn" style="margin-top:8px;" onclick="restoreBackupFile()">📤 שחזר מקובץ</button>
+    <div class="files-status" id="backupRestoreStatus"></div>
   </div>
 </div>
 
@@ -717,6 +740,48 @@ async function uploadSelectedFile() {
     input.value = '';
     filesLoaded = false;
     await loadFiles();
+  } catch(e) {
+    status.textContent = 'שגיאה: ' + e.message; status.style.color = 'var(--error)';
+  }
+}
+
+// ========== גיבוי ושחזור ==========
+
+function toggleBackup() {
+  const panel = document.getElementById('backupPanel');
+  panel.classList.toggle('show');
+  const emailInput = document.getElementById('backupEmailInput');
+  if (panel.classList.contains('show') && !emailInput.value) emailInput.value = currentUser.email;
+}
+
+async function sendBackup() {
+  const email  = document.getElementById('backupEmailInput').value.trim();
+  const status = document.getElementById('backupSendStatus');
+  if (!email) { status.textContent = 'נא להכניס כתובת מייל'; status.style.color = 'var(--error)'; return; }
+
+  status.textContent = 'שולח...'; status.style.color = 'var(--muted)';
+  try {
+    await callAPI('sendBackupEmail', { group_id: groupData.group_id, to_email: email });
+    status.textContent = '✓ נשלח! תבדקו את תיבת הדואר.'; status.style.color = 'var(--success)';
+  } catch(e) {
+    status.textContent = 'שגיאה: ' + e.message; status.style.color = 'var(--error)';
+  }
+}
+
+async function restoreBackupFile() {
+  const input  = document.getElementById('backupFileInput');
+  const status = document.getElementById('backupRestoreStatus');
+  const file   = input.files[0];
+  if (!file) { status.textContent = 'בחרו קובץ גיבוי קודם'; status.style.color = 'var(--error)'; return; }
+  if (!confirm('שחזור יחליף את כל מה שכתוב כרגע בשמונת הסעיפים בתוכן מהגיבוי. להמשיך?')) return;
+
+  status.textContent = 'קורא קובץ...'; status.style.color = 'var(--muted)';
+  try {
+    const text = await file.text();
+    status.textContent = 'משחזר...';
+    await callAPI('restoreBackup', { group_id: groupData.group_id, backup_json: text });
+    status.textContent = '✓ שוחזר בהצלחה! טוען מחדש...'; status.style.color = 'var(--success)';
+    setTimeout(() => location.reload(), 1200);
   } catch(e) {
     status.textContent = 'שגיאה: ' + e.message; status.style.color = 'var(--error)';
   }
