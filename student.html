@@ -619,8 +619,18 @@ function renderLessons(lessons) {
     const sectionLink = sec
       ? `<span class="lesson-section-link" onclick="jumpToSectionFromLesson(${sectionNum})">${sec.icon||''} עבור לסעיף ${sectionNum} — ${sec.name||''}</span>`
       : '';
+    const imageHtml = l.image_url
+      ? `<img src="${l.image_url}" style="width:100%;border-radius:10px;margin-bottom:10px;max-height:220px;object-fit:cover;" />`
+      : '';
+    const embedHtml = l.embed_url
+      ? `<div style="position:relative;width:100%;padding-top:56.25%;margin-bottom:10px;border-radius:10px;overflow:hidden;background:#000;">
+           <iframe src="${l.embed_url}" style="position:absolute;inset:0;width:100%;height:100%;border:none;" allowfullscreen></iframe>
+         </div>`
+      : '';
     return `<div class="lesson-card">
       <div class="lesson-card-header">${numBadge}<span class="lesson-name">${l.unit_name}</span></div>
+      ${imageHtml}
+      ${embedHtml}
       ${l.summary ? `<div class="lesson-summary">${l.summary}</div>` : ''}
       ${l.assignment_summary ? `<div class="lesson-assignment">📝 ${l.assignment_summary}</div>` : ''}
       ${sectionLink}
