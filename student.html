@@ -162,7 +162,9 @@
 
     .lesson-block-game { background: rgba(20,184,166,0.06); border: 1px solid rgba(20,184,166,0.2); border-radius: 12px; padding: 14px; }
     .game-mount { min-height: 40px; }
-    .memory-progress, .fc-progress { font-size: 12px; color: var(--muted); margin-bottom: 10px; text-align: center; }
+    .memory-progress, .fc-progress { font-size: 12px; color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+    .game-reset-btn { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--muted); border-radius: 8px; padding: 4px 10px; font-family: 'Heebo', sans-serif; font-size: 11px; cursor: pointer; }
+    .game-reset-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.3); }
     .memory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
     .memory-tile { background: var(--dark3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px 8px; font-size: 11px; text-align: center; cursor: pointer; min-height: 56px; display: flex; align-items: center; justify-content: center; line-height: 1.4; transition: all 0.15s; }
     .memory-tile.open { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.4); }
@@ -198,6 +200,26 @@
 
     .loading-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* מצב מצגת (גם לתלמידים — לפי בקשת ניסן) */
+    .present-overlay { position: fixed; inset: 0; background: var(--dark); z-index: 500; display: none; flex-direction: column; }
+    .present-overlay.show { display: flex; }
+    .present-topbar { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
+    .present-topbar-title { font-size: 15px; font-weight: 700; color: var(--muted); }
+    .present-topbar-actions { display: flex; gap: 8px; }
+    .present-stage { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px; overflow-y: auto; }
+    .present-slide { max-width: 720px; width: 100%; }
+    .present-slide .block-title { font-size: 20px; margin-bottom: 16px; }
+    .present-slide .block-body { font-size: 18px; }
+    .present-slide .block-question-prompt { font-size: 18px; }
+    .present-slide .lesson-teach-img { max-height: 340px; }
+    .present-bottombar { display: flex; align-items: center; justify-content: space-between; padding: 20px 32px; border-top: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
+    .present-nav-btn { padding: 12px 26px; border-radius: 12px; font-family: 'Heebo', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; border: none; background: var(--dark3); color: var(--text); }
+    .present-nav-btn:disabled { opacity: 0.35; cursor: default; }
+    .present-counter { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .present-slide .memory-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .present-slide .memory-tile { min-height: 80px; font-size: 14px; }
+    .present-slide .fc-card { min-height: 140px; font-size: 20px; padding: 36px 20px; }
 
     @media (max-width: 768px) {
       .layout { grid-template-columns: 1fr; }
@@ -280,6 +302,25 @@
     <div class="lessons-modal-body" id="lessonsBody">
       <div style="text-align:center;color:var(--muted);padding:30px;"><span class="loading-spinner"></span> טוען...</div>
     </div>
+  </div>
+</div>
+
+<!-- מצב מצגת -->
+<div class="present-overlay" id="presentOverlay">
+  <div class="present-topbar">
+    <div class="present-topbar-title" id="presentUnitName"></div>
+    <div class="present-topbar-actions">
+      <button class="btn-sm btn-back" onclick="togglePresentFullscreen()">⛶ מסך מלא</button>
+      <button class="btn-sm btn-back" onclick="closePresentation()">✕ סגור</button>
+    </div>
+  </div>
+  <div class="present-stage">
+    <div class="present-slide" id="presentSlide"></div>
+  </div>
+  <div class="present-bottombar">
+    <button class="present-nav-btn" id="presentPrevBtn" onclick="presentNav(-1)">→ הקודם</button>
+    <div class="present-counter" id="presentCounter"></div>
+    <button class="present-nav-btn" id="presentNextBtn" onclick="presentNav(1)">הבא ←</button>
   </div>
 </div>
 
@@ -766,10 +807,13 @@ function renderLessons(lessons) {
     const sectionLink = sec
       ? `<span class="lesson-section-link" onclick="jumpToSectionFromLesson(${sectionNum})">${sec.icon||''} עבור לסעיף ${sectionNum} — ${sec.name||''}</span>`
       : '';
+    const presentBtn = (l.blocks && l.blocks.length)
+      ? `<span class="lesson-section-link" onclick="openLessonPresentation('${l.unit_id}')" style="color:var(--purple-light);border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.1);">🎬 הצג כמצגת</span>`
+      : '';
     return `<div class="lesson-card">
       <div class="lesson-card-header">${numBadge}<span class="lesson-name">${escapeHtml(l.unit_name)}</span></div>
       ${renderLessonBlocks(l)}
-      ${sectionLink}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">${sectionLink}${presentBtn}</div>
     </div>`;
   }).join('');
 
@@ -839,8 +883,7 @@ function paintGame(blockId, gameType) {
 
 // ---- משחק זיכרון ----
 
-function initMemoryState(block) {
-  const pairs = block.game_data || [];
+function buildMemoryTiles(pairs) {
   const tiles = [];
   pairs.forEach((p, i) => {
     tiles.push({ pairIdx: i, side: 'term', text: p.term });
@@ -850,7 +893,22 @@ function initMemoryState(block) {
     const j = Math.floor(Math.random() * (i + 1));
     [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
   }
-  return { tiles, matched: new Array(tiles.length).fill(false), openIdx: [], busy: false };
+  return tiles;
+}
+
+function initMemoryState(block) {
+  const pairs = block.game_data || [];
+  return { pairs, tiles: buildMemoryTiles(pairs), matched: new Array(pairs.length * 2).fill(false), openIdx: [], busy: false };
+}
+
+function resetMemoryGame(blockId) {
+  const st = gameStates[blockId];
+  if (!st) return;
+  st.tiles = buildMemoryTiles(st.pairs);
+  st.matched = new Array(st.tiles.length).fill(false);
+  st.openIdx = [];
+  st.busy = false;
+  paintMemory(blockId);
 }
 
 function paintMemory(blockId) {
@@ -860,7 +918,10 @@ function paintMemory(blockId) {
   const solvedPairs = st.matched.filter(Boolean).length / 2;
   const totalPairs  = st.tiles.length / 2;
   mount.innerHTML = `
-    <div class="memory-progress">${solvedPairs} / ${totalPairs} זוגות נמצאו</div>
+    <div class="memory-progress">
+      <span>${solvedPairs} / ${totalPairs} זוגות נמצאו</span>
+      <button class="game-reset-btn" onclick="resetMemoryGame('${blockId}')">🔄 התחל מחדש</button>
+    </div>
     <div class="memory-grid">
       ${st.tiles.map((t, i) => {
         const isOpen = st.matched[i] || st.openIdx.includes(i);
@@ -903,7 +964,10 @@ function paintFlash(blockId) {
   if (!st || !mount) return;
   const p = st.pairs[st.idx] || { term: '', definition: '' };
   mount.innerHTML = `
-    <div class="fc-progress">${st.pairs.length ? st.idx + 1 : 0} / ${st.pairs.length}</div>
+    <div class="fc-progress">
+      <span>${st.pairs.length ? st.idx + 1 : 0} / ${st.pairs.length}</span>
+      <button class="game-reset-btn" onclick="resetFlashGame('${blockId}')">🔄 התחל מחדש</button>
+    </div>
     <div class="fc-card ${st.flipped ? 'flipped' : ''}" onclick="flipFlash('${blockId}')">
       <div class="fc-face fc-front">${escapeHtml(p.term)}</div>
       <div class="fc-face fc-back">${escapeHtml(p.definition)}</div>
@@ -919,6 +983,14 @@ function paintFlash(blockId) {
 function flipFlash(blockId) {
   const st = gameStates[blockId];
   st.flipped = !st.flipped;
+  paintFlash(blockId);
+}
+
+function resetFlashGame(blockId) {
+  const st = gameStates[blockId];
+  if (!st) return;
+  st.idx = 0;
+  st.flipped = false;
   paintFlash(blockId);
 }
 
@@ -958,6 +1030,69 @@ function saveQASection(unitId, blockId) {
 function jumpToSectionFromLesson(sectionNum) {
   closeLessons();
   navigateTo(sectionNum);
+}
+
+// ========== מצב מצגת (זהה בעקרונו לזה שבממשק המורה) ==========
+
+let presentLesson = null;
+let presentIdx    = 0;
+
+function openLessonPresentation(unitId) {
+  presentLesson = allLessons.find(l => l.unit_id === unitId);
+  if (!presentLesson || !presentLesson.blocks || !presentLesson.blocks.length) return;
+  presentIdx = 0;
+  document.getElementById('presentUnitName').textContent = presentLesson.unit_name;
+  document.getElementById('presentOverlay').classList.add('show');
+  document.addEventListener('keydown', presentKeyHandler);
+  renderPresentSlide();
+}
+
+function closePresentation() {
+  document.getElementById('presentOverlay').classList.remove('show');
+  document.removeEventListener('keydown', presentKeyHandler);
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+}
+
+function presentKeyHandler(e) {
+  if (e.key === 'Escape') closePresentation();
+  if (e.key === 'ArrowLeft') presentNav(1);
+  if (e.key === 'ArrowRight') presentNav(-1);
+}
+
+function togglePresentFullscreen() {
+  const el = document.getElementById('presentOverlay');
+  if (!document.fullscreenElement) el.requestFullscreen().catch(() => {});
+  else document.exitFullscreen().catch(() => {});
+}
+
+function presentNav(dir) {
+  const blocks = presentLesson.blocks || [];
+  const next = presentIdx + dir;
+  if (next < 0 || next >= blocks.length) return;
+  presentIdx = next;
+  renderPresentSlide();
+}
+
+/** משתמש חוזר ברנדור הבלוקים הרגיל (renderTeachBlock/renderQuestionBlock/paintGame) — אותו תוכן, עיצוב גדול יותר. */
+function renderPresentSlide() {
+  const blocks = presentLesson.blocks || [];
+  const block  = blocks[presentIdx];
+  const stage  = document.getElementById('presentSlide');
+  const glossary = getGlossaryForLesson(presentLesson);
+
+  document.getElementById('presentCounter').textContent = (presentIdx + 1) + ' / ' + blocks.length;
+  document.getElementById('presentPrevBtn').disabled = presentIdx === 0;
+  document.getElementById('presentNextBtn').disabled = presentIdx === blocks.length - 1;
+
+  if (block.block_type === 'teach') {
+    stage.innerHTML = renderTeachBlock(block);
+  } else if (block.block_type === 'question') {
+    stage.innerHTML = renderQuestionBlock(presentLesson.unit_id, block, glossary);
+  } else if (block.block_type === 'game') {
+    stage.innerHTML = renderGameBlockShell(block);
+    if (!gameStates[block.block_id]) gameStates[block.block_id] = block.game_type === 'memory' ? initMemoryState(block) : initFlashState(block);
+    paintGame(block.block_id, block.game_type);
+  }
 }
 
 function goBack() { window.location.href = TICHER_URL + 'student.html'; }

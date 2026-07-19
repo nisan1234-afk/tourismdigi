@@ -217,7 +217,9 @@
 
     /* בסיס המשחקים (זיכרון/כרטיסיות) — משמש במצב מצגת */
     .game-mount { min-height: 40px; }
-    .memory-progress, .fc-progress { font-size: 12px; color: var(--muted); margin-bottom: 10px; text-align: center; }
+    .memory-progress, .fc-progress { font-size: 12px; color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+    .game-reset-btn { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--muted); border-radius: 8px; padding: 4px 10px; font-family: 'Heebo', sans-serif; font-size: 11px; cursor: pointer; }
+    .game-reset-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.3); }
     .memory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
     .memory-tile { background: var(--dark3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px 8px; font-size: 11px; text-align: center; cursor: pointer; min-height: 56px; display: flex; align-items: center; justify-content: center; line-height: 1.4; transition: all 0.15s; }
     .memory-tile.open { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.4); }
@@ -1244,15 +1246,37 @@ function renderPresentSlide() {
 
 // גרסאות מקומיות של משחקי הזיכרון/כרטיסיות למצב מצגת (מציירות לתוך present_game_<id>)
 
-function initPresentMemory(block) {
-  const pairs = block.game_data || [];
+function buildPresentMemoryTiles(pairs) {
   const tiles = [];
   pairs.forEach((p, i) => { tiles.push({ pairIdx: i, side: 'term', text: p.term }); tiles.push({ pairIdx: i, side: 'definition', text: p.definition }); });
   for (let i = tiles.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [tiles[i], tiles[j]] = [tiles[j], tiles[i]]; }
-  return { tiles, matched: new Array(tiles.length).fill(false), openIdx: [], busy: false };
+  return tiles;
+}
+
+function initPresentMemory(block) {
+  const pairs = block.game_data || [];
+  return { pairs, tiles: buildPresentMemoryTiles(pairs), matched: new Array(pairs.length * 2).fill(false), openIdx: [], busy: false };
+}
+
+function resetPresentMemory(blockId) {
+  const st = presentGameStates[blockId];
+  if (!st) return;
+  st.tiles = buildPresentMemoryTiles(st.pairs);
+  st.matched = new Array(st.tiles.length).fill(false);
+  st.openIdx = [];
+  st.busy = false;
+  paintPresentMemory(blockId);
 }
 
 function initPresentFlash(block) { return { pairs: block.game_data || [], idx: 0, flipped: false }; }
+
+function resetPresentFlash(blockId) {
+  const st = presentGameStates[blockId];
+  if (!st) return;
+  st.idx = 0;
+  st.flipped = false;
+  paintPresentFlash(blockId);
+}
 
 function paintPresentGame(block) {
   if (block.game_type === 'memory') paintPresentMemory(block.block_id);
@@ -1266,7 +1290,10 @@ function paintPresentMemory(blockId) {
   const solved = st.matched.filter(Boolean).length / 2;
   const total  = st.tiles.length / 2;
   mount.innerHTML = `
-    <div class="memory-progress">${solved} / ${total} זוגות נמצאו</div>
+    <div class="memory-progress">
+      <span>${solved} / ${total} זוגות נמצאו</span>
+      <button class="game-reset-btn" onclick="resetPresentMemory('${blockId}')">🔄 התחל מחדש</button>
+    </div>
     <div class="memory-grid">
       ${st.tiles.map((t, i) => {
         const open = st.matched[i] || st.openIdx.includes(i);
@@ -1303,7 +1330,10 @@ function paintPresentFlash(blockId) {
   if (!st || !mount) return;
   const p = st.pairs[st.idx] || { term: '', definition: '' };
   mount.innerHTML = `
-    <div class="fc-progress">${st.pairs.length ? st.idx + 1 : 0} / ${st.pairs.length}</div>
+    <div class="fc-progress">
+      <span>${st.pairs.length ? st.idx + 1 : 0} / ${st.pairs.length}</span>
+      <button class="game-reset-btn" onclick="resetPresentFlash('${blockId}')">🔄 התחל מחדש</button>
+    </div>
     <div class="fc-card ${st.flipped?'flipped':''}" onclick="flipPresentFlash('${blockId}')">
       <div class="fc-face fc-front">${escapeHtml(p.term)}</div>
       <div class="fc-face fc-back">${escapeHtml(p.definition)}</div>
