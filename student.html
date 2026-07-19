@@ -615,8 +615,9 @@ function renderLessons(lessons) {
   body.innerHTML = lessons.map(l => {
     const numBadge = l.lesson_num ? `<span class="lesson-num-badge">יחידה ${l.lesson_num}</span>` : '';
     const sectionNum = parseInt(l.section_linked);
-    const sectionLink = sectionNum
-      ? `<span class="lesson-section-link" onclick="jumpToSectionFromLesson(${sectionNum})">${SECTION_ICONS[sectionNum]||''} עבור לסעיף ${sectionNum} — ${SECTION_NAMES[sectionNum]||''}</span>`
+    const sec = SECTIONS[sectionNum - 1];
+    const sectionLink = sec
+      ? `<span class="lesson-section-link" onclick="jumpToSectionFromLesson(${sectionNum})">${sec.icon||''} עבור לסעיף ${sectionNum} — ${sec.name||''}</span>`
       : '';
     return `<div class="lesson-card">
       <div class="lesson-card-header">${numBadge}<span class="lesson-name">${l.unit_name}</span></div>
