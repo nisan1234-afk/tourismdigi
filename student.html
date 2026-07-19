@@ -183,6 +183,12 @@
     .teacher-comment-label { font-size: 12px; font-weight: 700; color: var(--warning); margin-bottom: 6px; }
     .teacher-comment-text { font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
 
+    /* מילון מושגים — סימון + הסבר בריחוף (טולטיפ) */
+    .gloss-wrap { position: relative; }
+    .gloss-icon { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; margin: 0 3px; border-radius: 50%; background: rgba(59,130,246,0.2); color: var(--blue-light); font-size: 10px; font-style: normal; cursor: help; position: relative; vertical-align: middle; }
+    .gloss-tip { display: none; position: absolute; bottom: calc(100% + 8px); right: 50%; transform: translateX(50%); width: max-content; max-width: 240px; background: var(--dark4); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; padding: 8px 10px; font-size: 12px; font-weight: 400; color: var(--text); line-height: 1.5; box-shadow: 0 8px 20px rgba(0,0,0,0.4); z-index: 50; white-space: normal; text-align: right; }
+    .gloss-icon:hover .gloss-tip, .gloss-icon:focus .gloss-tip { display: block; }
+
     .lesson-answers-panel { margin: 20px 0; padding: 16px; background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; }
     .lap-title { font-size: 13px; font-weight: 700; color: var(--blue-light); margin-bottom: 12px; }
     .lap-item { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px dashed rgba(255,255,255,0.08); }
@@ -495,7 +501,7 @@ function renderLessonAnswersPanel(sectionNum) {
   const items = [];
   allLessons.forEach(l => (l.blocks || []).forEach(b => {
     if (b.block_type === 'question' && fieldIds.includes(b.target_field)) {
-      items.push({ unit_id: l.unit_id, unit_name: l.unit_name, block: b });
+      items.push({ unit_id: l.unit_id, unit_name: l.unit_name, block: b, glossary: getGlossaryForLesson(l) });
     }
   }));
   if (!items.length) return '';
@@ -506,7 +512,7 @@ function renderLessonAnswersPanel(sectionNum) {
       ${items.map(item => `
         <div class="lap-item">
           <div class="lap-source">מיחידה: ${escapeHtml(item.unit_name)}</div>
-          <div class="lap-question">${escapeHtml(item.block.question_prompt)}</div>
+          <div class="lap-question">${glossarize(item.block.question_prompt, item.glossary)}</div>
           <textarea class="field-textarea" id="qa_sec_${item.block.block_id}" rows="3" placeholder="כתבו כאן את התשובה שלכם...">${escapeHtml(item.block.saved_answer || '')}</textarea>
           <div class="qa-row">
             <button class="btn-nav btn-next" onclick="saveQASection('${item.unit_id}','${item.block.block_id}')">💾 שמור תשובה</button>
@@ -715,6 +721,38 @@ function escapeHtml(str) {
   return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** מוצא את זוגות מושג/הסבר של יחידה (מבלוק המשחק שלה, אם יש) — משמש כמילון לטולטיפים. */
+function getGlossaryForLesson(lesson) {
+  const gameBlock = (lesson.blocks || []).find(b => b.block_type === 'game' && b.game_data && b.game_data.length);
+  return gameBlock ? gameBlock.game_data : [];
+}
+
+/**
+ * עוטף מושגים מקצועיים בטקסט בסימן קטן (ⓘ) שמציג הסבר קצר במעבר עכבר —
+ * לפי בקשת ניסן: "ליד מילה מקצועית סימן קטן, ובמעבר עכבר עולה הסבר קצר".
+ * עובד על טקסט שכבר "אחרי escape", כדי לא לפתוח פרצת HTML מתוך תוכן חופשי.
+ */
+function glossarize(text, pairs) {
+  const escaped = escapeHtml(text);
+  const terms = (pairs || []).filter(p => p.term);
+  if (!terms.length) return escaped;
+
+  const sorted  = terms.slice().sort((a, b) => b.term.length - a.term.length);
+  const pattern = new RegExp(sorted.map(p => escapeRegex(escapeHtml(p.term))).join('|'), 'g');
+  const used = new Set();
+
+  return escaped.replace(pattern, (match) => {
+    const pair = sorted.find(p => escapeHtml(p.term) === match);
+    if (!pair || used.has(pair.term)) return match;
+    used.add(pair.term);
+    return `<span class="gloss-wrap">${match}<span class="gloss-icon" tabindex="0">ⓘ<span class="gloss-tip">${escapeHtml(pair.definition || '')}</span></span></span>`;
+  });
+}
+
 function renderLessons(lessons) {
   const body = document.getElementById('lessonsBody');
   if (!lessons.length) {
@@ -753,10 +791,11 @@ function renderLessonBlocks(lesson) {
       ${lesson.summary ? `<div class="lesson-summary">${escapeHtml(lesson.summary)}</div>` : ''}
       ${lesson.assignment_summary ? `<div class="lesson-assignment">📝 ${escapeHtml(lesson.assignment_summary)}</div>` : ''}`;
   }
+  const glossary = getGlossaryForLesson(lesson);
   return lesson.blocks.map(b => {
     if (b.block_type === 'teach')    return renderTeachBlock(b);
     if (b.block_type === 'game')     return renderGameBlockShell(b);
-    if (b.block_type === 'question') return renderQuestionBlock(lesson.unit_id, b);
+    if (b.block_type === 'question') return renderQuestionBlock(lesson.unit_id, b, glossary);
     return '';
   }).join('');
 }
@@ -773,11 +812,11 @@ function renderTeachBlock(block) {
     </div>`;
 }
 
-function renderQuestionBlock(unitId, block) {
+function renderQuestionBlock(unitId, block, glossary) {
   return `
     <div class="lesson-block lesson-block-question">
       <div class="block-title">🎯 ${escapeHtml(block.title || 'שאלה אישית')}</div>
-      <div class="block-question-prompt">${escapeHtml(block.question_prompt)}</div>
+      <div class="block-question-prompt">${glossarize(block.question_prompt, glossary)}</div>
       <textarea class="field-textarea" id="qa_${block.block_id}" rows="3" placeholder="כתבו כאן את התשובה שלכם...">${escapeHtml(block.saved_answer || '')}</textarea>
       <div class="qa-row">
         <button class="btn-nav btn-next" onclick="saveQABlock('${unitId}','${block.block_id}')">💾 שמור תשובה</button>
