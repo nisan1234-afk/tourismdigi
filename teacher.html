@@ -486,9 +486,12 @@ function renderUnits() {
   if (!allUnits.length) { grid.innerHTML = '<div class="empty-state">אין יחידות — צור יחידה חדשה</div>'; return; }
   grid.innerHTML = allUnits.map((u, i) => {
     const isOpen = u.is_open === 'TRUE' || u.is_open === true;
+    const lessonBadge = u.lesson_num ? `<span style="font-size:10px;color:var(--muted);">יחידה ${u.lesson_num} · </span>` : '';
+    const summaryPreview = u.summary ? `<div style="font-size:11px;color:var(--muted);margin:6px 0;line-height:1.5;">${u.summary.slice(0,120)}${u.summary.length>120?'…':''}</div>` : '';
     return `<div class="unit-card ${isOpen?'open':''}">
-      <div class="unit-name">${u.unit_name}</div>
+      <div class="unit-name">${lessonBadge}${u.unit_name}</div>
       <div class="unit-meta">${SECTION_ICONS[u.section_linked]||''} סעיף ${u.section_linked} — ${SECTION_NAMES[u.section_linked]||''}</div>
+      ${summaryPreview}
       <div class="unit-toggle">
         <span style="font-size:12px;color:${isOpen?'var(--success)':'var(--muted)'}">${isOpen?'פתוח':'סגור'}</span>
         <label class="toggle-switch">
@@ -514,7 +517,7 @@ async function createUnit() {
   const isOpen  = document.getElementById('unitOpenNow').value === 'true';
   if (!name) { alert('נא להכניס שם'); return; }
   try {
-    await callAPI('toggleUnit', { unit_id: 'unit_'+Date.now(), is_open: isOpen, unit_name: name, section_linked: section });
+    await callAPI('addUnit', { unit_name: name, section_linked: section, is_open: isOpen });
     hideModal('addUnitModal');
     document.getElementById('unitName').value = '';
     await loadData();

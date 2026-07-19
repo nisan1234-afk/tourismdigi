@@ -127,6 +127,25 @@
       .files-panel { left: 16px; bottom: 24px; width: calc(100% - 32px); }
     }
 
+    /* LESSONS BUTTON + MODAL */
+    .lessons-btn { padding: 12px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 10px; color: var(--blue-light); font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; text-align: center; transition: all 0.2s; }
+    .lessons-btn:hover { background: rgba(59,130,246,0.2); }
+    .lessons-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 400; display: none; align-items: center; justify-content: center; padding: 24px; }
+    .lessons-overlay.show { display: flex; }
+    .lessons-modal { background: var(--dark2); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 0; width: 100%; max-width: 640px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; }
+    .lessons-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+    .lessons-modal-title { font-size: 17px; font-weight: 800; }
+    .lessons-modal-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; }
+    .lessons-modal-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .lesson-card { background: var(--dark3); border: 1px solid rgba(255,255,255,0.07); border-radius: 14px; padding: 18px; margin-bottom: 14px; }
+    .lesson-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .lesson-num-badge { font-size: 11px; font-weight: 700; color: var(--blue-light); background: rgba(59,130,246,0.15); border-radius: 20px; padding: 2px 10px; }
+    .lesson-name { font-size: 15px; font-weight: 700; }
+    .lesson-summary { font-size: 13px; color: var(--text); line-height: 1.7; margin-bottom: 10px; }
+    .lesson-assignment { font-size: 12px; color: var(--muted); line-height: 1.6; background: var(--dark2); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+    .lesson-section-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--teal); background: rgba(20,184,166,0.1); border: 1px solid rgba(20,184,166,0.3); border-radius: 8px; padding: 7px 12px; cursor: pointer; text-decoration: none; }
+    .lesson-section-link:hover { background: rgba(20,184,166,0.2); }
+
     .loading-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -172,6 +191,7 @@
     <div class="sidebar-title">הסעיפים</div>
     <div id="sectionNav"></div>
 
+    <button class="lessons-btn" onclick="openLessons()">📚 השיעורים שלי</button>
     <button class="files-btn" onclick="toggleFiles()">📎 קבצים</button>
     <button class="chatbot-btn" onclick="toggleChatbot()">🤖 עזרה מהבוט</button>
   </div>
@@ -197,6 +217,19 @@
   <div class="chatbot-input-wrap">
     <input class="chatbot-input" id="chatInput" placeholder="כתוב שאלה..." onkeydown="if(event.key==='Enter')sendChat()" />
     <button class="chatbot-send" onclick="sendChat()">שלח</button>
+  </div>
+</div>
+
+<!-- LESSONS -->
+<div class="lessons-overlay" id="lessonsOverlay">
+  <div class="lessons-modal">
+    <div class="lessons-modal-header">
+      <div class="lessons-modal-title">📚 השיעורים שלי</div>
+      <button class="lessons-modal-close" onclick="closeLessons()">×</button>
+    </div>
+    <div class="lessons-modal-body" id="lessonsBody">
+      <div style="text-align:center;color:var(--muted);padding:30px;"><span class="loading-spinner"></span> טוען...</div>
+    </div>
   </div>
 </div>
 
@@ -545,6 +578,62 @@ function fileToBase64(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+// ========== שיעורים ==========
+
+let lessonsLoaded = false;
+
+function openLessons() {
+  document.getElementById('lessonsOverlay').classList.add('show');
+  if (!lessonsLoaded) loadLessons();
+}
+
+function closeLessons() {
+  document.getElementById('lessonsOverlay').classList.remove('show');
+}
+
+document.getElementById('lessonsOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeLessons();
+});
+
+async function loadLessons() {
+  const body = document.getElementById('lessonsBody');
+  try {
+    const data = await callAPI('getGroupLessons', { group_id: groupData.group_id });
+    lessonsLoaded = true;
+    renderLessons(data.lessons || []);
+  } catch(e) {
+    body.innerHTML = '<div style="color:var(--error);padding:20px;">שגיאה: ' + e.message + '</div>';
+  }
+}
+
+function renderLessons(lessons) {
+  const body = document.getElementById('lessonsBody');
+  if (!lessons.length) {
+    body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;">המורה עוד לא פתח שיעורים. תבדקו שוב בקרוב.</div>';
+    return;
+  }
+  body.innerHTML = lessons.map(l => {
+    const numBadge = l.lesson_num ? `<span class="lesson-num-badge">יחידה ${l.lesson_num}</span>` : '';
+    const sectionNum = parseInt(l.section_linked);
+    const sectionLink = sectionNum
+      ? `<span class="lesson-section-link" onclick="jumpToSectionFromLesson(${sectionNum})">${SECTION_ICONS[sectionNum]||''} עבור לסעיף ${sectionNum} — ${SECTION_NAMES[sectionNum]||''}</span>`
+      : '';
+    return `<div class="lesson-card">
+      <div class="lesson-card-header">${numBadge}<span class="lesson-name">${l.unit_name}</span></div>
+      ${l.summary ? `<div class="lesson-summary">${l.summary}</div>` : ''}
+      ${l.assignment_summary ? `<div class="lesson-assignment">📝 ${l.assignment_summary}</div>` : ''}
+      ${sectionLink}
+    </div>`;
+  }).join('');
+}
+
+function jumpToSectionFromLesson(sectionNum) {
+  closeLessons();
+  const cur = parseInt(groupData.current_section) || 1;
+  if (sectionNum > cur) { alert('סעיף ' + sectionNum + ' עוד לא נפתח לכם.'); return; }
+  navigateTo(sectionNum);
 }
 
 function goBack() { window.location.href = TICHER_URL + 'student.html'; }
