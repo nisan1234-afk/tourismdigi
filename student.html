@@ -176,6 +176,13 @@
     .fc-hint { text-align: center; font-size: 11px; color: var(--muted); margin-top: 6px; }
     .fc-controls { display: flex; justify-content: space-between; margin-top: 10px; }
 
+    /* עריכות והערות מורה על סעיפי הפרויקט */
+    .teacher-edit-note { margin-top: 8px; padding: 10px 12px; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3); border-radius: 10px; font-size: 12px; color: var(--warning); }
+    .teacher-edit-text { margin-top: 6px; color: var(--text); font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+    .teacher-comment-box { margin-bottom: 20px; padding: 14px 16px; background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3); border-radius: 12px; }
+    .teacher-comment-label { font-size: 12px; font-weight: 700; color: var(--warning); margin-bottom: 6px; }
+    .teacher-comment-text { font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+
     .lesson-answers-panel { margin: 20px 0; padding: 16px; background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; }
     .lap-title { font-size: 13px; font-weight: 700; color: var(--blue-light); margin-bottom: 12px; }
     .lap-item { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px dashed rgba(255,255,255,0.08); }
@@ -329,6 +336,8 @@ let saveTimer      = null;
 let hasChanges     = false;
 let allLessons     = [];
 const gameStates   = {};
+let teacherEdits    = {};
+let sectionComments = {};
 
 window.onload = async function() {
   const stored = sessionStorage.getItem('kitahUser');
@@ -357,7 +366,9 @@ async function loadGroupData() {
 
     const detail = await callAPI('getGroupData', { group_id: myGroup.group_id });
     groupData = { ...myGroup, ...detail.group };
-    sectionContent = detail.sections || {};
+    sectionContent   = detail.sections || {};
+    teacherEdits     = detail.teacherEdits || {};
+    sectionComments  = detail.comments || {};
 
     // טוען גם את היחידות מראש (לא רק כשפותחים את "השיעורים שלי") — כדי שתשובות
     // לשאלות אישיות מיחידות יוכלו להופיע ישירות בתוך עמוד הסעיף הרלוונטי
@@ -410,7 +421,13 @@ function navigateTo(num) {
   let savedData = {};
   try { savedData = JSON.parse(saved); } catch(e) { savedData = {}; }
 
-  const fieldsHTML = sec.fields.map(f => `
+  const fieldTeacherEdits = teacherEdits['section_' + num] || {};
+
+  const fieldsHTML = sec.fields.map(f => {
+    const teacherNote = fieldTeacherEdits[f.id]
+      ? `<div class="teacher-edit-note">✏️ עריכת המורה לשדה זה: <div class="teacher-edit-text">${escapeHtml(fieldTeacherEdits[f.id])}</div></div>`
+      : '';
+    return `
     <div class="field-group">
       <div class="field-label">${f.label} <span class="field-required">*</span></div>
       ${f.type === 'textarea'
@@ -418,8 +435,15 @@ function navigateTo(num) {
         : `<input class="field-input" id="field_${f.id}" type="text" oninput="onFieldChange()" placeholder="${f.hint||''}" value="${savedData[f.id]||''}" />`
       }
       ${f.hint ? `<div class="field-hint">💡 ${f.hint}</div>` : ''}
+      ${teacherNote}
     </div>
-  `).join('');
+  `;
+  }).join('');
+
+  const sectionComment = sectionComments['section_' + num];
+  const commentHTML = sectionComment
+    ? `<div class="teacher-comment-box"><div class="teacher-comment-label">💬 הערת המורה לסעיף זה</div><div class="teacher-comment-text">${escapeHtml(sectionComment)}</div></div>`
+    : '';
 
   const isLocked = false; // נעילת סעיפים כבויה לפי בקשת המורה — כל הסעיפים פתוחים תמיד
 
@@ -442,6 +466,7 @@ function navigateTo(num) {
       <div class="section-desc">${sec.desc}</div>
     </div>
     ${siteHTML}
+    ${commentHTML}
     ${lessonAnswersHTML}
     ${isLocked ? '<div style="padding:20px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;color:var(--error);font-size:14px;">🔒 סעיף זה נעול עדיין — המורה יפתח אותו בזמן המתאים.</div>' : fieldsHTML}
     ${!isLocked ? `

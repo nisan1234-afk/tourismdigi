@@ -487,6 +487,8 @@ const FIELDS_BY_SECTION = [
 let currentUser = null;
 let allGroups   = [];
 let allUnits    = [];
+let currentGroupDetail = null;
+let currentGroupId     = null;
 
 window.onload = async function() {
   const stored = sessionStorage.getItem('kitahUser');
@@ -599,6 +601,8 @@ async function openGroupModal(group_id) {
 
   try {
     const data = await callAPI('getGroupData', { group_id });
+    currentGroupDetail = data;
+    currentGroupId     = group_id;
     const sections = data.sections || {};
     const members  = data.group.members || [];
     const c = data.contribution || {};
@@ -636,6 +640,15 @@ async function openGroupModal(group_id) {
         </div>
       </div>
       <div class="group-subsection">
+        <div class="group-subsection-title">✏️ עריכה והערות על סעיפי הפרויקט</div>
+        <div class="form-group">
+          <select id="teacherEditSectionSelect" onchange="renderTeacherEditSection()">
+            ${FIELDS_BY_SECTION.map((s, n) => s ? `<option value="${n}">סעיף ${n} — ${s.name}</option>` : '').join('')}
+          </select>
+        </div>
+        <div id="teacherEditSectionBody"></div>
+      </div>
+      <div class="group-subsection">
         <div class="group-subsection-title">📚 תשובות מהיחידות (שאלות אישיות)</div>
         <div id="groupLessonAnswers"><span class="loading-spinner"></span></div>
       </div>
@@ -645,10 +658,64 @@ async function openGroupModal(group_id) {
       </div>
     `;
 
+    renderTeacherEditSection();
     loadGroupLessonAnswers(group_id);
     loadGroupChatLog(group_id);
   } catch(e) {
     document.getElementById('groupModalContent').innerHTML = '<div class="empty-state">שגיאה: ' + e.message + '</div>';
+  }
+}
+
+/** מציג לעריכה את שדות הסעיף הנבחר — מה שהתלמידים כתבו (לקריאה) + עריכת מורה לכל שדה + הערה כללית לסעיף. */
+function renderTeacherEditSection() {
+  const num = parseInt(document.getElementById('teacherEditSectionSelect').value);
+  const sec = FIELDS_BY_SECTION[num];
+  let studentData = {};
+  try { studentData = JSON.parse((currentGroupDetail.sections || {})['section_' + num] || '{}'); } catch(e) { studentData = {}; }
+  const teacherData = (currentGroupDetail.teacherEdits || {})['section_' + num] || {};
+  const comment = (currentGroupDetail.comments || {})['section_' + num] || '';
+
+  const fieldsHtml = sec.fields.map(f => `
+    <div class="form-group">
+      <label>${f.label} — מה הקבוצה כתבה</label>
+      <div style="font-size:12px;color:var(--muted);background:var(--dark3);border-radius:8px;padding:8px 10px;margin-bottom:6px;white-space:pre-wrap;">${escapeHtml(studentData[f.id] || '(עוד לא מולא)')}</div>
+      <label>עריכת המורה לשדה זה (תוצג לתלמיד בצבע נפרד, לא תדרוס את מה שהם כתבו)</label>
+      <textarea id="teacherField_${f.id}" rows="3" placeholder="השאירו ריק אם אין הערה לשדה הזה">${escapeHtml(teacherData[f.id] || '')}</textarea>
+    </div>
+  `).join('');
+
+  document.getElementById('teacherEditSectionBody').innerHTML = `
+    ${fieldsHtml}
+    <div class="form-group">
+      <label>הערת מורה כללית לסעיף (תוצג לתלמיד למעלה)</label>
+      <textarea id="teacherSectionComment" rows="3">${escapeHtml(comment)}</textarea>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="btn-sm btn-primary" onclick="saveTeacherSectionEditClick(${num})">שמור עריכה והערה</button>
+      <span id="teacherEditStatus" style="font-size:12px;color:var(--muted);"></span>
+    </div>
+  `;
+}
+
+async function saveTeacherSectionEditClick(num) {
+  const sec = FIELDS_BY_SECTION[num];
+  const teacher_fields = {};
+  sec.fields.forEach(f => {
+    const val = document.getElementById('teacherField_' + f.id).value.trim();
+    if (val) teacher_fields[f.id] = val;
+  });
+  const comment = document.getElementById('teacherSectionComment').value.trim();
+  const status = document.getElementById('teacherEditStatus');
+  status.textContent = 'שומר...'; status.style.color = 'var(--muted)';
+  try {
+    await callAPI('saveTeacherSectionEdit', { group_id: currentGroupId, section_num: num, teacher_fields, comment });
+    currentGroupDetail.teacherEdits = currentGroupDetail.teacherEdits || {};
+    currentGroupDetail.teacherEdits['section_' + num] = teacher_fields;
+    currentGroupDetail.comments = currentGroupDetail.comments || {};
+    currentGroupDetail.comments['section_' + num] = comment;
+    status.textContent = '✓ נשמר'; status.style.color = 'var(--success)';
+  } catch(e) {
+    status.textContent = 'שגיאה: ' + e.message; status.style.color = 'var(--error)';
   }
 }
 
