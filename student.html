@@ -50,6 +50,10 @@
     .sp-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
     .sp-bar { height: 5px; background: var(--dark4); border-radius: 3px; overflow: hidden; }
     .sp-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--teal), var(--blue)); transition: width 0.5s; }
+    .score-badge { margin-bottom: 8px; padding: 9px 12px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); border-radius: 9px; font-size: 13px; font-weight: 700; color: var(--warning); text-align: center; }
+    .qa-score-pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 20px; background: rgba(245,158,11,0.15); color: var(--warning); margin-inline-start: 8px; }
+    .qa-feedback { font-size: 12px; color: var(--warning); margin-top: 8px; line-height: 1.5; }
+    .qa-feedback:empty { display: none; }
 
     /* PARTNER ONLINE */
     .partner-status { padding: 10px 12px; background: var(--dark3); border-radius: 9px; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -258,6 +262,8 @@
       <div class="sp-bar"><div class="sp-fill" id="progressFill" style="width:0%"></div></div>
     </div>
 
+    <div class="score-badge" id="scoreBadge" style="display:none;">⭐ <span id="scoreValue">0</span> נקודות</div>
+
     <div class="partner-status">
       <div class="partner-dot" id="partnerDot"></div>
       <div class="partner-name" id="partnerLabel">חברי הקבוצה: טוען...</div>
@@ -439,6 +445,7 @@ async function loadGroupData() {
     sectionContent   = detail.sections || {};
     teacherEdits     = detail.teacherEdits || {};
     sectionComments  = detail.comments || {};
+    updateScoreBadge(detail.total_score || 0);
 
     // טוען גם את היחידות מראש (לא רק כשפותחים את "השיעורים שלי") — כדי שתשובות
     // לשאלות אישיות מיחידות יוכלו להופיע ישירות בתוך עמוד הסעיף הרלוונטי
@@ -644,6 +651,13 @@ async function saveSection(auto = false) {
 async function saveAndNext() {
   await saveSection();
   if (currentSection < 8) navigateTo(currentSection + 1);
+}
+
+function updateScoreBadge(total) {
+  const badge = document.getElementById('scoreBadge');
+  const val   = document.getElementById('scoreValue');
+  if (total > 0) { val.textContent = total; badge.style.display = 'block'; }
+  else { badge.style.display = 'none'; }
 }
 
 function updateProgress() {
@@ -893,23 +907,23 @@ function renderLessons(lessons) {
 
 /** בונה HTML לכל הבלוקים של יחידה — נופל חזרה לתצוגה הישנה אם ליחידה אין בלוקים כלל. */
 function renderLessonBlocks(lesson) {
+  const glossary = getGlossaryForLesson(lesson);
   if (!lesson.blocks || !lesson.blocks.length) {
     const imageHtml = lesson.image_url ? `<img class="lesson-teach-img" src="${lesson.image_url}" />` : '';
     const embedHtml = lesson.embed_url ? `<div class="lesson-embed-wrap"><iframe src="${lesson.embed_url}" allowfullscreen></iframe></div>` : '';
     return `${imageHtml}${embedHtml}
-      ${lesson.summary ? `<div class="lesson-summary">${escapeHtml(lesson.summary)}</div>` : ''}
-      ${lesson.assignment_summary ? `<div class="lesson-assignment">📝 ${escapeHtml(lesson.assignment_summary)}</div>` : ''}`;
+      ${lesson.summary ? `<div class="lesson-summary">${glossarize(lesson.summary, glossary)}</div>` : ''}
+      ${lesson.assignment_summary ? `<div class="lesson-assignment">📝 ${glossarize(lesson.assignment_summary, glossary)}</div>` : ''}`;
   }
-  const glossary = getGlossaryForLesson(lesson);
   return lesson.blocks.map(b => {
-    if (b.block_type === 'teach')    return renderTeachBlock(b);
+    if (b.block_type === 'teach')    return renderTeachBlock(b, glossary);
     if (b.block_type === 'game')     return renderGameBlockShell(b);
     if (b.block_type === 'question') return renderQuestionBlock(lesson.unit_id, b, glossary);
     return '';
   }).join('');
 }
 
-function renderTeachBlock(block) {
+function renderTeachBlock(block, glossary) {
   const media = block.media_type === 'video' && block.media_url
     ? `<div class="lesson-embed-wrap"><iframe src="${block.media_url}" allowfullscreen></iframe></div>`
     : (block.media_type === 'image' && block.media_url ? `<img class="lesson-teach-img" src="${block.media_url}" />` : '');
@@ -917,20 +931,25 @@ function renderTeachBlock(block) {
     <div class="lesson-block lesson-block-teach">
       ${block.title ? `<div class="block-title">📖 ${escapeHtml(block.title)}</div>` : ''}
       ${media}
-      ${block.body ? `<div class="block-body">${escapeHtml(block.body)}</div>` : ''}
+      ${block.body ? `<div class="block-body">${glossarize(block.body, glossary)}</div>` : ''}
     </div>`;
 }
 
 function renderQuestionBlock(unitId, block, glossary) {
+  const scorePill = (block.saved_score !== null && block.saved_score !== undefined)
+    ? `<span class="qa-score-pill" id="qa_score_${block.block_id}">⭐ ${block.saved_score}/10</span>` : `<span id="qa_score_${block.block_id}"></span>`;
+  const feedback = block.saved_feedback
+    ? `<div class="qa-feedback" id="qa_feedback_${block.block_id}">${escapeHtml(block.saved_feedback)}</div>` : `<div class="qa-feedback" id="qa_feedback_${block.block_id}"></div>`;
   return `
     <div class="lesson-block lesson-block-question">
-      <div class="block-title">🎯 ${escapeHtml(block.title || 'שאלה אישית')}</div>
+      <div class="block-title">🎯 ${escapeHtml(block.title || 'שאלה אישית')}${scorePill}</div>
       <div class="block-question-prompt">${glossarize(block.question_prompt, glossary)}</div>
       <textarea class="field-textarea" id="qa_${block.block_id}" rows="3" placeholder="כתבו כאן את התשובה שלכם...">${escapeHtml(block.saved_answer || '')}</textarea>
       <div class="qa-row">
         <button class="btn-nav btn-next" onclick="saveQABlock('${unitId}','${block.block_id}')">💾 שמור תשובה</button>
         <span class="qa-status" id="qa_status_${block.block_id}"></span>
       </div>
+      ${feedback}
     </div>`;
 }
 
@@ -1070,11 +1089,31 @@ function flashNav(blockId, dir) {
 // ---- שמירת תשובות לשאלות אישיות ----
 
 async function saveLessonAnswerCore(unitId, blockId, text, statusEl) {
-  if (statusEl) { statusEl.textContent = 'שומר...'; statusEl.style.color = 'var(--muted)'; }
+  if (statusEl) { statusEl.textContent = 'שומר... (ייתכן שהצ׳אטבוט בודק את התשובה, זה יכול לקחת כמה שניות)'; statusEl.style.color = 'var(--muted)'; }
   try {
-    await callAPI('saveLessonAnswer', { group_id: groupData.group_id, unit_id: unitId, block_id: blockId, answer_text: text });
-    allLessons.forEach(l => (l.blocks || []).forEach(b => { if (b.block_id === blockId) b.saved_answer = text; }));
+    const res = await callAPI('saveLessonAnswer', { group_id: groupData.group_id, unit_id: unitId, block_id: blockId, answer_text: text });
+    let oldScore = 0;
+    allLessons.forEach(l => (l.blocks || []).forEach(b => {
+      if (b.block_id === blockId) {
+        oldScore = Number(b.saved_score) || 0;
+        b.saved_answer   = text;
+        b.saved_score    = res.score === '' ? null : res.score;
+        b.saved_feedback = res.score_feedback || '';
+      }
+    }));
     if (statusEl) { statusEl.textContent = '✓ נשמר'; statusEl.style.color = 'var(--success)'; }
+
+    const scorePill = document.getElementById('qa_score_' + blockId);
+    const feedbackEl = document.getElementById('qa_feedback_' + blockId);
+    if (scorePill) scorePill.innerHTML = (res.score !== '' && res.score != null) ? `⭐ ${res.score}/10` : '';
+    if (feedbackEl) feedbackEl.textContent = res.score_feedback || '';
+
+    if (res.score !== '' && res.score != null) {
+      const newScore = Number(res.score) || 0;
+      const badgeVal = document.getElementById('scoreValue');
+      const current = Number(badgeVal.textContent) || 0;
+      updateScoreBadge(current - oldScore + newScore);
+    }
   } catch (e) {
     if (statusEl) { statusEl.textContent = 'שגיאה: ' + e.message; statusEl.style.color = 'var(--error)'; }
   }

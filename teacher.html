@@ -1224,7 +1224,7 @@ function renderPresentSlide() {
     stage.innerHTML = `
       <div class="present-slide-title">📖 ${escapeHtml(block.title)}</div>
       <div class="present-slide-media">${media}</div>
-      <div class="present-slide-body">${escapeHtml(block.body)}</div>
+      <div class="present-slide-body">${glossarize(block.body, glossary)}</div>
     `;
   } else if (block.block_type === 'question') {
     stage.innerHTML = `
