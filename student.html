@@ -582,11 +582,9 @@ function fileToBase64(file) {
 
 // ========== שיעורים ==========
 
-let lessonsLoaded = false;
-
 function openLessons() {
   document.getElementById('lessonsOverlay').classList.add('show');
-  if (!lessonsLoaded) loadLessons();
+  loadLessons(); // תמיד טוען מחדש — המורה עשוי לפתוח/לסגור שיעורים בין פתיחה לפתיחה
 }
 
 function closeLessons() {
@@ -599,9 +597,9 @@ document.getElementById('lessonsOverlay').addEventListener('click', function(e) 
 
 async function loadLessons() {
   const body = document.getElementById('lessonsBody');
+  body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;"><span class="loading-spinner"></span> טוען...</div>';
   try {
     const data = await callAPI('getGroupLessons', { group_id: groupData.group_id });
-    lessonsLoaded = true;
     renderLessons(data.lessons || []);
   } catch(e) {
     body.innerHTML = '<div style="color:var(--error);padding:20px;">שגיאה: ' + e.message + '</div>';
