@@ -159,6 +159,20 @@
     .sec-detail-icon { font-size: 18px; margin: 4px 0; }
     .sec-detail-name { font-size: 10px; color: var(--muted); }
 
+    /* עריכת בלוקים ביחידה */
+    .block-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--dark3); border-radius: 10px; margin-bottom: 8px; }
+    .block-type-badge { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+    .block-type-badge.teach    { background: rgba(59,130,246,0.15); color: var(--blue-light); }
+    .block-type-badge.game     { background: rgba(20,184,166,0.15); color: var(--teal); }
+    .block-type-badge.question { background: rgba(139,92,246,0.15); color: var(--purple-light); }
+    .block-row-title { flex: 1; font-size: 13px; font-weight: 600; }
+    .block-row-actions { display: flex; gap: 4px; }
+    .block-row-actions button { background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--muted); border-radius: 6px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
+    .block-row-actions button:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+    .block-form-section { display: none; }
+    .block-form-section.show { display: block; }
+    .form-hint3 { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+
     /* תשובות מהיחידות + יומן צ'אט (בתוך מודל הקבוצה) */
     .group-subsection { margin-top: 16px; }
     .group-subsection-title { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 10px; }
@@ -379,12 +393,96 @@
   </div>
 </div>
 
+<!-- מודל ניהול בלוקים ביחידה -->
+<div class="modal-overlay" id="blocksModal">
+  <div class="modal modal-wide">
+    <div class="modal-title" id="blocksModalTitle">בלוקים ביחידה</div>
+    <input type="hidden" id="blocksUnitIdx" />
+
+    <div id="blocksListSection">
+      <div id="blocksList"></div>
+      <button class="btn-sm btn-primary" style="margin-top:10px;" onclick="openBlockForm(null)">+ בלוק חדש</button>
+    </div>
+
+    <div id="blockFormSection" style="display:none;">
+      <input type="hidden" id="editBlockId" />
+      <div class="form-group">
+        <label>סוג בלוק</label>
+        <select id="blockType" onchange="renderBlockFormFields()">
+          <option value="teach">📖 הוראה</option>
+          <option value="game">🎮 משחק תרגול</option>
+          <option value="question">🎯 שאלה אישית</option>
+        </select>
+      </div>
+      <div class="form-group"><label>כותרת</label><input type="text" id="blockTitle" /></div>
+
+      <div id="fieldsTeach" class="block-form-section">
+        <div class="form-group"><label>תוכן ההסבר</label><textarea id="blockBody" rows="6"></textarea></div>
+        <div class="form-group">
+          <label>מדיה</label>
+          <select id="blockMediaType">
+            <option value="">ללא מדיה</option>
+            <option value="image">תמונה</option>
+            <option value="video">וידאו / הטמעה</option>
+          </select>
+        </div>
+        <div class="form-group"><label>קישור מדיה</label><input type="text" id="blockMediaUrl" placeholder="https://..." /></div>
+      </div>
+
+      <div id="fieldsGame" class="block-form-section">
+        <div class="form-group">
+          <label>סוג משחק</label>
+          <select id="blockGameType">
+            <option value="memory">משחק זיכרון</option>
+            <option value="flashcards">כרטיסיות</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>זוגות (מושג | הסבר) — שורה לכל זוג</label>
+          <textarea id="blockGamePairs" rows="6" placeholder="מושג ראשון | הסבר קצר&#10;מושג שני | הסבר קצר"></textarea>
+          <div class="form-hint3">כל שורה: מושג, אחריו סימן | ואז ההסבר/דוגמה. לפחות 3 זוגות מומלץ.</div>
+        </div>
+      </div>
+
+      <div id="fieldsQuestion" class="block-form-section">
+        <div class="form-group"><label>נוסח השאלה</label><textarea id="blockQuestionPrompt" rows="3"></textarea></div>
+        <div class="form-group">
+          <label>לאיזה שדה בפרויקט זה מתחבר</label>
+          <select id="blockTargetField"></select>
+          <div class="form-hint3">התשובה של הקבוצה תוצג בעמוד הסעיף הזה, לצד השדות הרגילים.</div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-modal-cancel" onclick="closeBlockForm()">ביטול</button>
+        <button class="btn-modal-confirm" onclick="saveBlockForm()">שמור בלוק</button>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="hideModal('blocksModal')">סגור</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const TICHER_URL = 'https://nisan1234-afk.github.io/TICHER/';
 const API_URL    = 'https://script.google.com/macros/s/AKfycbwf3-MNZBBi64zXcNH7wfhBRoEBl9brtQ9QRI4Won5RmUIOrl_WBivN6uI5NAp6Mc0h/exec';
 
 const SECTION_NAMES = ['','פרטי האתר','תיאור כללי','נוכחות דיגיטלית','מושגים','חוויית משתמש','עוצמות','הצעות לשיפור','סיכום אישי'];
 const SECTION_ICONS = ['','📍','📄','📱','📚','🖥️','💪','💡','✍️'];
+
+const FIELDS_BY_SECTION = [
+  null,
+  { name:'פרטי האתר', fields:[{id:'site_basic',label:'פרטי האתר הבסיסיים'},{id:'site_target',label:'קהל יעד'},{id:'site_unique',label:'מה מיוחד באתר?'}] },
+  { name:'תיאור כללי', fields:[{id:'general_history',label:'היסטוריה ורקע'},{id:'general_offer',label:'מה האתר מציע?'}] },
+  { name:'נוכחות דיגיטלית', fields:[{id:'digital_website',label:'אתר האינטרנט'},{id:'digital_social',label:'רשתות חברתיות'},{id:'digital_reviews',label:'ביקורות ודירוגים'}] },
+  { name:'מושגים', fields:[{id:'concepts_list',label:'מושגים רלוונטיים'},{id:'concepts_apply',label:'כיצד מושגים אלו קשורים לאתר?'}] },
+  { name:'חוויית משתמש', fields:[{id:'ux_ease',label:'קלות שימוש'},{id:'ux_design',label:'עיצוב ויזואלי'},{id:'ux_mobile',label:'גרסה מובייל'}] },
+  { name:'עוצמות', fields:[{id:'strengths_main',label:'עוצמות דיגיטליות'},{id:'strengths_example',label:'דוגמה בולטת'}] },
+  { name:'הצעות לשיפור', fields:[{id:'improve_ideas',label:'הצעות לשיפור'},{id:'improve_priority',label:'הצעה מועדפת'},{id:'improve_how',label:'כיצד תיישמו אותה?'}] },
+  { name:'סיכום אישי', fields:[{id:'personal_learned',label:'מה למדתי'},{id:'personal_surprise',label:'מה הפתיע אותי'},{id:'personal_takeaway',label:'מה אני לוקח/ת איתי'}] }
+];
 
 let currentUser = null;
 let allGroups   = [];
@@ -630,7 +728,10 @@ function renderUnits() {
           <span class="toggle-slider"></span>
         </label>
       </div>
-      <button class="btn-sm btn-back" style="margin-top:10px;width:100%;" onclick="openEditUnit(${i})">✏️ ערוך</button>
+      <div style="display:flex;gap:6px;margin-top:10px;">
+        <button class="btn-sm btn-back" style="flex:1;" onclick="openEditUnit(${i})">✏️ ערוך</button>
+        <button class="btn-sm btn-back" style="flex:1;" onclick="openBlocksEditor(${i})">🧩 בלוקים (${(u.blocks||[]).length})</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -703,6 +804,150 @@ async function saveEditedUnit() {
     });
     hideModal('editUnitModal');
     await loadData();
+  } catch(e) { alert('שגיאה: ' + e.message); }
+}
+
+// ========== ניהול בלוקים ביחידה ==========
+
+function openBlocksEditor(idx) {
+  document.getElementById('blocksUnitIdx').value = idx;
+  const u = allUnits[idx];
+  document.getElementById('blocksModalTitle').textContent = 'בלוקים ביחידה — ' + u.unit_name;
+  document.getElementById('blocksListSection').style.display = 'block';
+  document.getElementById('blockFormSection').style.display = 'none';
+  renderBlocksList();
+  showModal('blocksModal');
+}
+
+function renderBlocksList() {
+  const idx = parseInt(document.getElementById('blocksUnitIdx').value);
+  const u = allUnits[idx];
+  const blocks = (u.blocks || []).slice().sort((a,b) => (Number(a.block_order)||99) - (Number(b.block_order)||99));
+  const list = document.getElementById('blocksList');
+
+  if (!blocks.length) { list.innerHTML = '<div class="empty-state">אין עדיין בלוקים ביחידה זו.</div>'; return; }
+
+  const typeLabel = { teach: '📖 הוראה', game: '🎮 משחק', question: '🎯 שאלה' };
+  list.innerHTML = blocks.map((b, i) => `
+    <div class="block-row">
+      <span class="block-type-badge ${b.block_type}">${typeLabel[b.block_type] || b.block_type}</span>
+      <span class="block-row-title">${escapeHtml(b.title || '(ללא כותרת)')}</span>
+      <div class="block-row-actions">
+        <button onclick="moveBlock('${b.block_id}',-1)" ${i===0?'disabled':''} title="הזז למעלה">▲</button>
+        <button onclick="moveBlock('${b.block_id}',1)" ${i===blocks.length-1?'disabled':''} title="הזז למטה">▼</button>
+        <button onclick="openBlockForm('${b.block_id}')" title="ערוך">✏️</button>
+        <button onclick="deleteBlockRow('${b.block_id}')" title="מחק">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function populateTargetFieldOptions(selected) {
+  const sel = document.getElementById('blockTargetField');
+  sel.innerHTML = FIELDS_BY_SECTION.map((sec, num) => {
+    if (!sec) return '';
+    return `<optgroup label="סעיף ${num} — ${sec.name}">` +
+      sec.fields.map(f => `<option value="${f.id}" ${f.id===selected?'selected':''}>${f.label}</option>`).join('') +
+      '</optgroup>';
+  }).join('');
+}
+
+function openBlockForm(blockId) {
+  const idx = parseInt(document.getElementById('blocksUnitIdx').value);
+  const u = allUnits[idx];
+  const block = blockId ? (u.blocks || []).find(b => b.block_id === blockId) : null;
+
+  document.getElementById('editBlockId').value = blockId || '';
+  document.getElementById('blockType').value = block ? block.block_type : 'teach';
+  document.getElementById('blockTitle').value = block ? (block.title || '') : '';
+  document.getElementById('blockBody').value = block ? (block.body || '') : '';
+  document.getElementById('blockMediaType').value = block ? (block.media_type || '') : '';
+  document.getElementById('blockMediaUrl').value = block ? (block.media_url || '') : '';
+  document.getElementById('blockGameType').value = block ? (block.game_type || 'memory') : 'memory';
+  document.getElementById('blockGamePairs').value = block && block.game_data
+    ? block.game_data.map(p => (p.term||'') + ' | ' + (p.definition||'')).join('\n')
+    : '';
+  document.getElementById('blockQuestionPrompt').value = block ? (block.question_prompt || '') : '';
+  populateTargetFieldOptions(block ? block.target_field : '');
+
+  document.getElementById('blockType').disabled = !!block; // לא משנים סוג בלוק קיים, רק יוצרים חדש מהסוג הרצוי
+  renderBlockFormFields();
+  document.getElementById('blocksListSection').style.display = 'none';
+  document.getElementById('blockFormSection').style.display = 'block';
+}
+
+function closeBlockForm() {
+  document.getElementById('blocksListSection').style.display = 'block';
+  document.getElementById('blockFormSection').style.display = 'none';
+}
+
+function renderBlockFormFields() {
+  const type = document.getElementById('blockType').value;
+  document.getElementById('fieldsTeach').classList.toggle('show', type === 'teach');
+  document.getElementById('fieldsGame').classList.toggle('show', type === 'game');
+  document.getElementById('fieldsQuestion').classList.toggle('show', type === 'question');
+}
+
+function parseGamePairs(text) {
+  return text.split('\n').map(line => line.trim()).filter(Boolean).map(line => {
+    const parts = line.split('|');
+    return { term: (parts[0]||'').trim(), definition: (parts.slice(1).join('|')||'').trim() };
+  });
+}
+
+async function saveBlockForm() {
+  const idx = parseInt(document.getElementById('blocksUnitIdx').value);
+  const u = allUnits[idx];
+  const blockId = document.getElementById('editBlockId').value;
+  const type = document.getElementById('blockType').value;
+
+  const payload = {
+    title: document.getElementById('blockTitle').value.trim(),
+    body: document.getElementById('blockBody').value.trim(),
+    media_type: document.getElementById('blockMediaType').value,
+    media_url: document.getElementById('blockMediaUrl').value.trim(),
+    game_type: document.getElementById('blockGameType').value,
+    game_data: parseGamePairs(document.getElementById('blockGamePairs').value),
+    question_prompt: document.getElementById('blockQuestionPrompt').value.trim(),
+    target_field: document.getElementById('blockTargetField').value
+  };
+
+  try {
+    if (blockId) {
+      await callAPI('updateLessonBlock', Object.assign({ block_id: blockId }, payload));
+    } else {
+      const nextOrder = (u.blocks || []).length + 1;
+      await callAPI('addLessonBlock', Object.assign({ unit_id: u.unit_id, block_type: type, block_order: nextOrder }, payload));
+    }
+    await loadData();
+    openBlocksEditor(idx);
+  } catch(e) { alert('שגיאה: ' + e.message); }
+}
+
+async function deleteBlockRow(blockId) {
+  if (!confirm('למחוק את הבלוק הזה?')) return;
+  const idx = parseInt(document.getElementById('blocksUnitIdx').value);
+  try {
+    await callAPI('deleteLessonBlock', { block_id: blockId });
+    await loadData();
+    openBlocksEditor(idx);
+  } catch(e) { alert('שגיאה: ' + e.message); }
+}
+
+async function moveBlock(blockId, dir) {
+  const idx = parseInt(document.getElementById('blocksUnitIdx').value);
+  const u = allUnits[idx];
+  const blocks = (u.blocks || []).slice().sort((a,b) => (Number(a.block_order)||99) - (Number(b.block_order)||99));
+  const pos = blocks.findIndex(b => b.block_id === blockId);
+  const swapPos = pos + dir;
+  if (swapPos < 0 || swapPos >= blocks.length) return;
+
+  const a = blocks[pos], b = blocks[swapPos];
+  try {
+    await callAPI('updateLessonBlock', { block_id: a.block_id, block_order: swapPos + 1 });
+    await callAPI('updateLessonBlock', { block_id: b.block_id, block_order: pos + 1 });
+    await loadData();
+    openBlocksEditor(idx);
   } catch(e) { alert('שגיאה: ' + e.message); }
 }
 
