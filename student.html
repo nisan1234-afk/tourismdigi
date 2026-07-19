@@ -146,6 +146,43 @@
     .lesson-section-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; color: var(--teal); background: rgba(20,184,166,0.1); border: 1px solid rgba(20,184,166,0.3); border-radius: 8px; padding: 7px 12px; cursor: pointer; text-decoration: none; }
     .lesson-section-link:hover { background: rgba(20,184,166,0.2); }
 
+    /* LESSON BLOCKS (הוראה / משחק / שאלה אישית) */
+    .lesson-block { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px dashed rgba(255,255,255,0.08); }
+    .lesson-block:last-child { border-bottom: none; }
+    .block-title { font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--blue-light); }
+    .block-body { font-size: 13px; color: var(--text); line-height: 1.7; white-space: pre-wrap; }
+    .lesson-teach-img { width: 100%; border-radius: 10px; margin-bottom: 10px; max-height: 220px; object-fit: cover; }
+    .lesson-embed-wrap { position: relative; width: 100%; padding-top: 56.25%; margin-bottom: 10px; border-radius: 10px; overflow: hidden; background: #000; }
+    .lesson-embed-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+
+    .lesson-block-question { background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.2); border-radius: 12px; padding: 14px; }
+    .block-question-prompt { font-size: 13px; color: var(--text); line-height: 1.6; margin-bottom: 10px; }
+    .qa-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+    .qa-status { font-size: 12px; color: var(--muted); }
+
+    .lesson-block-game { background: rgba(20,184,166,0.06); border: 1px solid rgba(20,184,166,0.2); border-radius: 12px; padding: 14px; }
+    .game-mount { min-height: 40px; }
+    .memory-progress, .fc-progress { font-size: 12px; color: var(--muted); margin-bottom: 10px; text-align: center; }
+    .memory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+    .memory-tile { background: var(--dark3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px 8px; font-size: 11px; text-align: center; cursor: pointer; min-height: 56px; display: flex; align-items: center; justify-content: center; line-height: 1.4; transition: all 0.15s; }
+    .memory-tile.open { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.4); }
+    .memory-tile.matched { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.4); opacity: 0.7; cursor: default; }
+    .memory-win { text-align: center; margin-top: 12px; font-size: 13px; font-weight: 700; color: var(--success); }
+
+    .fc-card { background: var(--dark3); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 24px 16px; min-height: 90px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .fc-face { display: none; line-height: 1.5; }
+    .fc-card:not(.flipped) .fc-front { display: block; }
+    .fc-card.flipped .fc-back { display: block; color: var(--teal); }
+    .fc-hint { text-align: center; font-size: 11px; color: var(--muted); margin-top: 6px; }
+    .fc-controls { display: flex; justify-content: space-between; margin-top: 10px; }
+
+    .lesson-answers-panel { margin: 20px 0; padding: 16px; background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; }
+    .lap-title { font-size: 13px; font-weight: 700; color: var(--blue-light); margin-bottom: 12px; }
+    .lap-item { margin-bottom: 14px; padding-bottom: 14px; border-bottom: 1px dashed rgba(255,255,255,0.08); }
+    .lap-item:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+    .lap-question { font-size: 13px; margin-bottom: 8px; line-height: 1.6; }
+    .lap-source { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+
     .loading-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -290,6 +327,8 @@ let currentSection = 1;
 let sectionContent = {};
 let saveTimer      = null;
 let hasChanges     = false;
+let allLessons     = [];
+const gameStates   = {};
 
 window.onload = async function() {
   const stored = sessionStorage.getItem('kitahUser');
@@ -319,6 +358,13 @@ async function loadGroupData() {
     const detail = await callAPI('getGroupData', { group_id: myGroup.group_id });
     groupData = { ...myGroup, ...detail.group };
     sectionContent = detail.sections || {};
+
+    // טוען גם את היחידות מראש (לא רק כשפותחים את "השיעורים שלי") — כדי שתשובות
+    // לשאלות אישיות מיחידות יוכלו להופיע ישירות בתוך עמוד הסעיף הרלוונטי
+    try {
+      const lessonsData = await callAPI('getGroupLessons', { group_id: myGroup.group_id });
+      allLessons = lessonsData.lessons || [];
+    } catch (e) { allLessons = []; }
 
     // חברי הקבוצה מלבדי
     const others = (groupData.members || []).filter(m => m.toLowerCase() !== email.toLowerCase());
@@ -387,6 +433,8 @@ function navigateTo(num) {
     </div>
   ` : '';
 
+  const lessonAnswersHTML = renderLessonAnswersPanel(num);
+
   document.getElementById('sectionContent').innerHTML = `
     <div class="section-header">
       <div class="section-number">סעיף ${num} מתוך 8</div>
@@ -394,6 +442,7 @@ function navigateTo(num) {
       <div class="section-desc">${sec.desc}</div>
     </div>
     ${siteHTML}
+    ${lessonAnswersHTML}
     ${isLocked ? '<div style="padding:20px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;color:var(--error);font-size:14px;">🔒 סעיף זה נעול עדיין — המורה יפתח אותו בזמן המתאים.</div>' : fieldsHTML}
     ${!isLocked ? `
     <div class="nav-btns">
@@ -408,6 +457,39 @@ function navigateTo(num) {
   document.getElementById('saveBtn').classList.toggle('show', !isLocked);
   hasChanges = false;
   renderSectionNav();
+}
+
+/**
+ * מציג בתוך עמוד הסעיף את השאלות האישיות מהיחידות שמפנות אליו (target_field
+ * ששייך לאחד משדות הסעיף הזה) — כדי שהיחידות באמת יזינו את התוצר הסופי,
+ * לא רק "ילמדו בצד". נשמר בנפרד מהשדות החופשיים, לא נדרס אוטומטית.
+ */
+function renderLessonAnswersPanel(sectionNum) {
+  const sec = SECTIONS[sectionNum - 1];
+  const fieldIds = sec.fields.map(f => f.id);
+  const items = [];
+  allLessons.forEach(l => (l.blocks || []).forEach(b => {
+    if (b.block_type === 'question' && fieldIds.includes(b.target_field)) {
+      items.push({ unit_id: l.unit_id, unit_name: l.unit_name, block: b });
+    }
+  }));
+  if (!items.length) return '';
+
+  return `
+    <div class="lesson-answers-panel">
+      <div class="lap-title">📚 מהיחידות שלכם — תשובות שיכולות לעזור לסעיף הזה</div>
+      ${items.map(item => `
+        <div class="lap-item">
+          <div class="lap-source">מיחידה: ${escapeHtml(item.unit_name)}</div>
+          <div class="lap-question">${escapeHtml(item.block.question_prompt)}</div>
+          <textarea class="field-textarea" id="qa_sec_${item.block.block_id}" rows="3" placeholder="כתבו כאן את התשובה שלכם...">${escapeHtml(item.block.saved_answer || '')}</textarea>
+          <div class="qa-row">
+            <button class="btn-nav btn-next" onclick="saveQASection('${item.unit_id}','${item.block.block_id}')">💾 שמור תשובה</button>
+            <span class="qa-status" id="qa_sec_status_${item.block.block_id}"></span>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
 }
 
 async function proposeSite() {
@@ -597,16 +679,21 @@ async function loadLessons() {
   body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;"><span class="loading-spinner"></span> טוען...</div>';
   try {
     const data = await callAPI('getGroupLessons', { group_id: groupData.group_id });
-    renderLessons(data.lessons || []);
+    allLessons = data.lessons || [];
+    renderLessons(allLessons);
   } catch(e) {
     body.innerHTML = '<div style="color:var(--error);padding:20px;">שגיאה: ' + e.message + '</div>';
   }
 }
 
+function escapeHtml(str) {
+  return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 function renderLessons(lessons) {
   const body = document.getElementById('lessonsBody');
   if (!lessons.length) {
-    body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;">המורה עוד לא פתח שיעורים. תבדקו שוב בקרוב.</div>';
+    body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;">המורה עוד לא הוסיף שיעורים. תבדקו שוב בקרוב.</div>';
     return;
   }
   body.innerHTML = lessons.map(l => {
@@ -616,29 +703,196 @@ function renderLessons(lessons) {
     const sectionLink = sec
       ? `<span class="lesson-section-link" onclick="jumpToSectionFromLesson(${sectionNum})">${sec.icon||''} עבור לסעיף ${sectionNum} — ${sec.name||''}</span>`
       : '';
-    const imageHtml = l.image_url
-      ? `<img src="${l.image_url}" style="width:100%;border-radius:10px;margin-bottom:10px;max-height:220px;object-fit:cover;" />`
-      : '';
-    const embedHtml = l.embed_url
-      ? `<div style="position:relative;width:100%;padding-top:56.25%;margin-bottom:10px;border-radius:10px;overflow:hidden;background:#000;">
-           <iframe src="${l.embed_url}" style="position:absolute;inset:0;width:100%;height:100%;border:none;" allowfullscreen></iframe>
-         </div>`
-      : '';
     return `<div class="lesson-card">
-      <div class="lesson-card-header">${numBadge}<span class="lesson-name">${l.unit_name}</span></div>
-      ${imageHtml}
-      ${embedHtml}
-      ${l.summary ? `<div class="lesson-summary">${l.summary}</div>` : ''}
-      ${l.assignment_summary ? `<div class="lesson-assignment">📝 ${l.assignment_summary}</div>` : ''}
+      <div class="lesson-card-header">${numBadge}<span class="lesson-name">${escapeHtml(l.unit_name)}</span></div>
+      ${renderLessonBlocks(l)}
       ${sectionLink}
     </div>`;
   }).join('');
+
+  // מציירים משחקים אחרי שהם כבר בתוך ה-DOM (הם צריכים אלמנט קיים כדי לצייר לתוכו)
+  lessons.forEach(l => (l.blocks || []).forEach(b => {
+    if (b.block_type === 'game') {
+      if (!gameStates[b.block_id]) gameStates[b.block_id] = b.game_type === 'memory' ? initMemoryState(b) : initFlashState(b);
+      paintGame(b.block_id, b.game_type);
+    }
+  }));
+}
+
+/** בונה HTML לכל הבלוקים של יחידה — נופל חזרה לתצוגה הישנה אם ליחידה אין בלוקים כלל. */
+function renderLessonBlocks(lesson) {
+  if (!lesson.blocks || !lesson.blocks.length) {
+    const imageHtml = lesson.image_url ? `<img class="lesson-teach-img" src="${lesson.image_url}" />` : '';
+    const embedHtml = lesson.embed_url ? `<div class="lesson-embed-wrap"><iframe src="${lesson.embed_url}" allowfullscreen></iframe></div>` : '';
+    return `${imageHtml}${embedHtml}
+      ${lesson.summary ? `<div class="lesson-summary">${escapeHtml(lesson.summary)}</div>` : ''}
+      ${lesson.assignment_summary ? `<div class="lesson-assignment">📝 ${escapeHtml(lesson.assignment_summary)}</div>` : ''}`;
+  }
+  return lesson.blocks.map(b => {
+    if (b.block_type === 'teach')    return renderTeachBlock(b);
+    if (b.block_type === 'game')     return renderGameBlockShell(b);
+    if (b.block_type === 'question') return renderQuestionBlock(lesson.unit_id, b);
+    return '';
+  }).join('');
+}
+
+function renderTeachBlock(block) {
+  const media = block.media_type === 'video' && block.media_url
+    ? `<div class="lesson-embed-wrap"><iframe src="${block.media_url}" allowfullscreen></iframe></div>`
+    : (block.media_type === 'image' && block.media_url ? `<img class="lesson-teach-img" src="${block.media_url}" />` : '');
+  return `
+    <div class="lesson-block lesson-block-teach">
+      ${block.title ? `<div class="block-title">📖 ${escapeHtml(block.title)}</div>` : ''}
+      ${media}
+      ${block.body ? `<div class="block-body">${escapeHtml(block.body)}</div>` : ''}
+    </div>`;
+}
+
+function renderQuestionBlock(unitId, block) {
+  return `
+    <div class="lesson-block lesson-block-question">
+      <div class="block-title">🎯 ${escapeHtml(block.title || 'שאלה אישית')}</div>
+      <div class="block-question-prompt">${escapeHtml(block.question_prompt)}</div>
+      <textarea class="field-textarea" id="qa_${block.block_id}" rows="3" placeholder="כתבו כאן את התשובה שלכם...">${escapeHtml(block.saved_answer || '')}</textarea>
+      <div class="qa-row">
+        <button class="btn-nav btn-next" onclick="saveQABlock('${unitId}','${block.block_id}')">💾 שמור תשובה</button>
+        <span class="qa-status" id="qa_status_${block.block_id}"></span>
+      </div>
+    </div>`;
+}
+
+function renderGameBlockShell(block) {
+  return `
+    <div class="lesson-block lesson-block-game">
+      ${block.title ? `<div class="block-title">🎮 ${escapeHtml(block.title)}</div>` : ''}
+      <div class="game-mount" id="game_${block.block_id}"></div>
+    </div>`;
+}
+
+function paintGame(blockId, gameType) {
+  if (gameType === 'memory') paintMemory(blockId); else paintFlash(blockId);
+}
+
+// ---- משחק זיכרון ----
+
+function initMemoryState(block) {
+  const pairs = block.game_data || [];
+  const tiles = [];
+  pairs.forEach((p, i) => {
+    tiles.push({ pairIdx: i, side: 'term', text: p.term });
+    tiles.push({ pairIdx: i, side: 'definition', text: p.definition });
+  });
+  for (let i = tiles.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+  }
+  return { tiles, matched: new Array(tiles.length).fill(false), openIdx: [], busy: false };
+}
+
+function paintMemory(blockId) {
+  const st = gameStates[blockId];
+  const mount = document.getElementById('game_' + blockId);
+  if (!st || !mount) return;
+  const solvedPairs = st.matched.filter(Boolean).length / 2;
+  const totalPairs  = st.tiles.length / 2;
+  mount.innerHTML = `
+    <div class="memory-progress">${solvedPairs} / ${totalPairs} זוגות נמצאו</div>
+    <div class="memory-grid">
+      ${st.tiles.map((t, i) => {
+        const isOpen = st.matched[i] || st.openIdx.includes(i);
+        return `<div class="memory-tile ${isOpen ? 'open' : ''} ${st.matched[i] ? 'matched' : ''}" onclick="clickMemoryTile('${blockId}',${i})">${isOpen ? escapeHtml(t.text) : '?'}</div>`;
+      }).join('')}
+    </div>
+    ${solvedPairs === totalPairs && totalPairs > 0 ? '<div class="memory-win">🎉 מצאתם את כל הזוגות!</div>' : ''}
+  `;
+}
+
+function clickMemoryTile(blockId, i) {
+  const st = gameStates[blockId];
+  if (!st || st.busy || st.matched[i] || st.openIdx.includes(i)) return;
+  st.openIdx.push(i);
+  if (st.openIdx.length === 2) {
+    st.busy = true;
+    paintMemory(blockId);
+    const [a, b] = st.openIdx;
+    const isMatch = st.tiles[a].pairIdx === st.tiles[b].pairIdx && st.tiles[a].side !== st.tiles[b].side;
+    setTimeout(() => {
+      if (isMatch) { st.matched[a] = true; st.matched[b] = true; }
+      st.openIdx = [];
+      st.busy = false;
+      paintMemory(blockId);
+    }, isMatch ? 500 : 1000);
+  } else {
+    paintMemory(blockId);
+  }
+}
+
+// ---- כרטיסיות (flashcards) ----
+
+function initFlashState(block) {
+  return { pairs: block.game_data || [], idx: 0, flipped: false };
+}
+
+function paintFlash(blockId) {
+  const st = gameStates[blockId];
+  const mount = document.getElementById('game_' + blockId);
+  if (!st || !mount) return;
+  const p = st.pairs[st.idx] || { term: '', definition: '' };
+  mount.innerHTML = `
+    <div class="fc-progress">${st.pairs.length ? st.idx + 1 : 0} / ${st.pairs.length}</div>
+    <div class="fc-card ${st.flipped ? 'flipped' : ''}" onclick="flipFlash('${blockId}')">
+      <div class="fc-face fc-front">${escapeHtml(p.term)}</div>
+      <div class="fc-face fc-back">${escapeHtml(p.definition)}</div>
+    </div>
+    <div class="fc-hint">לחצו על הכרטיס כדי לראות את התשובה</div>
+    <div class="fc-controls">
+      <button class="btn-nav btn-prev" onclick="flashNav('${blockId}',-1)">→ קודם</button>
+      <button class="btn-nav btn-next" onclick="flashNav('${blockId}',1)">הבא ←</button>
+    </div>
+  `;
+}
+
+function flipFlash(blockId) {
+  const st = gameStates[blockId];
+  st.flipped = !st.flipped;
+  paintFlash(blockId);
+}
+
+function flashNav(blockId, dir) {
+  const st = gameStates[blockId];
+  if (!st.pairs.length) return;
+  st.idx = (st.idx + dir + st.pairs.length) % st.pairs.length;
+  st.flipped = false;
+  paintFlash(blockId);
+}
+
+// ---- שמירת תשובות לשאלות אישיות ----
+
+async function saveLessonAnswerCore(unitId, blockId, text, statusEl) {
+  if (statusEl) { statusEl.textContent = 'שומר...'; statusEl.style.color = 'var(--muted)'; }
+  try {
+    await callAPI('saveLessonAnswer', { group_id: groupData.group_id, unit_id: unitId, block_id: blockId, answer_text: text });
+    allLessons.forEach(l => (l.blocks || []).forEach(b => { if (b.block_id === blockId) b.saved_answer = text; }));
+    if (statusEl) { statusEl.textContent = '✓ נשמר'; statusEl.style.color = 'var(--success)'; }
+  } catch (e) {
+    if (statusEl) { statusEl.textContent = 'שגיאה: ' + e.message; statusEl.style.color = 'var(--error)'; }
+  }
+}
+
+function saveQABlock(unitId, blockId) {
+  const ta = document.getElementById('qa_' + blockId);
+  const status = document.getElementById('qa_status_' + blockId);
+  saveLessonAnswerCore(unitId, blockId, ta.value, status);
+}
+
+function saveQASection(unitId, blockId) {
+  const ta = document.getElementById('qa_sec_' + blockId);
+  const status = document.getElementById('qa_sec_status_' + blockId);
+  saveLessonAnswerCore(unitId, blockId, ta.value, status);
 }
 
 function jumpToSectionFromLesson(sectionNum) {
   closeLessons();
-  const cur = parseInt(groupData.current_section) || 1;
-  if (sectionNum > cur) { alert('סעיף ' + sectionNum + ' עוד לא נפתח לכם.'); return; }
   navigateTo(sectionNum);
 }
 

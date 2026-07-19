@@ -159,6 +159,19 @@
     .sec-detail-icon { font-size: 18px; margin: 4px 0; }
     .sec-detail-name { font-size: 10px; color: var(--muted); }
 
+    /* תשובות מהיחידות + יומן צ'אט (בתוך מודל הקבוצה) */
+    .group-subsection { margin-top: 16px; }
+    .group-subsection-title { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 10px; }
+    .lanswer-card { background: var(--dark3); border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+    .lanswer-source { font-size: 11px; color: var(--blue-light); font-weight: 700; margin-bottom: 4px; }
+    .lanswer-question { font-size: 12px; color: var(--muted); margin-bottom: 6px; line-height: 1.5; }
+    .lanswer-text { font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+    .chatlog-wrap { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 4px; }
+    .chatlog-msg { padding: 8px 12px; border-radius: 10px; font-size: 12px; line-height: 1.5; max-width: 85%; }
+    .chatlog-msg.student { background: rgba(59,130,246,0.15); align-self: flex-end; }
+    .chatlog-msg.bot { background: var(--dark3); align-self: flex-start; }
+    .chatlog-meta { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
     .loading-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .empty-state { padding: 30px; text-align: center; color: var(--muted); font-size: 13px; }
@@ -524,9 +537,59 @@ async function openGroupModal(group_id) {
           <button onclick="addMember('${group_id}')">הוסף</button>
         </div>
       </div>
+      <div class="group-subsection">
+        <div class="group-subsection-title">📚 תשובות מהיחידות (שאלות אישיות)</div>
+        <div id="groupLessonAnswers"><span class="loading-spinner"></span></div>
+      </div>
+      <div class="group-subsection">
+        <div class="group-subsection-title">🤖 יומן הצ'אטבוט</div>
+        <div id="groupChatLog"><span class="loading-spinner"></span></div>
+      </div>
     `;
+
+    loadGroupLessonAnswers(group_id);
+    loadGroupChatLog(group_id);
   } catch(e) {
     document.getElementById('groupModalContent').innerHTML = '<div class="empty-state">שגיאה: ' + e.message + '</div>';
+  }
+}
+
+function escapeHtml(str) {
+  return String(str == null ? '' : str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function loadGroupLessonAnswers(group_id) {
+  const el = document.getElementById('groupLessonAnswers');
+  try {
+    const data = await callAPI('getGroupLessonAnswers', { group_id });
+    const answers = data.answers || [];
+    if (!answers.length) { el.innerHTML = '<div style="font-size:12px;color:var(--muted);">אין עדיין תשובות שמורות.</div>'; return; }
+    el.innerHTML = answers.map(a => `
+      <div class="lanswer-card">
+        <div class="lanswer-source">מיחידה: ${escapeHtml(a.unit_name)}</div>
+        <div class="lanswer-question">${escapeHtml(a.question_prompt)}</div>
+        <div class="lanswer-text">${escapeHtml(a.answer_text)}</div>
+      </div>
+    `).join('');
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--error);">שגיאה: ' + e.message + '</div>';
+  }
+}
+
+async function loadGroupChatLog(group_id) {
+  const el = document.getElementById('groupChatLog');
+  try {
+    const data = await callAPI('getGroupChatLog', { group_id });
+    const logs = data.logs || [];
+    if (!logs.length) { el.innerHTML = '<div style="font-size:12px;color:var(--muted);">אין עדיין שיחות עם הצ\'אטבוט.</div>'; return; }
+    el.innerHTML = '<div class="chatlog-wrap">' + logs.map(l => `
+      <div class="chatlog-msg ${l.role === 'student' ? 'student' : 'bot'}">
+        ${escapeHtml(l.message)}
+        <div class="chatlog-meta">${l.role === 'student' ? (l.student_email||'') : 'בוט'} · סעיף ${l.section_num||''}</div>
+      </div>
+    `).join('') + '</div>';
+  } catch(e) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--error);">שגיאה: ' + e.message + '</div>';
   }
 }
 
