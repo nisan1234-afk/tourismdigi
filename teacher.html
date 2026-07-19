@@ -411,6 +411,22 @@
           </select>
         </div>
         <div class="form-group">
+          <label>חודש מתוכנן ללימוד</label>
+          <select id="editUnitMonth">
+            <option value="">— לא נקבע —</option>
+            <option value="ספטמבר">ספטמבר</option>
+            <option value="אוקטובר">אוקטובר</option>
+            <option value="נובמבר">נובמבר</option>
+            <option value="דצמבר">דצמבר</option>
+            <option value="ינואר">ינואר</option>
+            <option value="פברואר">פברואר</option>
+            <option value="מרץ">מרץ</option>
+            <option value="אפריל">אפריל</option>
+            <option value="מאי">מאי</option>
+            <option value="יוני">יוני</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>קישור לתמונה</label>
           <input type="text" id="editUnitImage" placeholder="https://..." oninput="renderLivePreview()" />
           <div class="form-hint2">קישור ישיר לתמונה (למשל מ-Google Drive עם שיתוף "כל מי שיש לו קישור", או כל אתר תמונות).</div>
@@ -853,9 +869,11 @@ function renderUnits() {
     const isOpen = u.is_open === 'TRUE' || u.is_open === true;
     const lessonBadge = u.lesson_num ? `<span style="font-size:10px;color:var(--muted);">יחידה ${u.lesson_num} · </span>` : '';
     const summaryPreview = u.summary ? `<div style="font-size:11px;color:var(--muted);margin:6px 0;line-height:1.5;">${u.summary.slice(0,120)}${u.summary.length>120?'…':''}</div>` : '';
+    const monthBadge = u.planned_month ? `<span class="badge badge-blue" style="margin-bottom:8px;">📅 ${u.planned_month}</span>` : '';
     return `<div class="unit-card ${isOpen?'open':''}">
       <div class="unit-name">${lessonBadge}${u.unit_name}</div>
       <div class="unit-meta">${SECTION_ICONS[u.section_linked]||''} סעיף ${u.section_linked} — ${SECTION_NAMES[u.section_linked]||''}</div>
+      ${monthBadge}
       ${summaryPreview}
       <div class="unit-toggle">
         <span style="font-size:12px;color:${isOpen?'var(--success)':'var(--muted)'}">${isOpen?'פתוח':'סגור'}</span>
@@ -899,6 +917,7 @@ function openEditUnit(idx) {
   document.getElementById('editUnitId').value         = u.unit_id;
   document.getElementById('editUnitName').value        = u.unit_name || '';
   document.getElementById('editUnitSection').value     = u.section_linked || '1';
+  document.getElementById('editUnitMonth').value       = u.planned_month || '';
   document.getElementById('editUnitImage').value       = u.image_url || '';
   document.getElementById('editUnitEmbed').value       = u.embed_url || '';
   document.getElementById('editUnitSummary').value     = u.summary || '';
@@ -934,6 +953,7 @@ async function saveEditedUnit() {
       unit_id,
       unit_name:          document.getElementById('editUnitName').value.trim(),
       section_linked:     document.getElementById('editUnitSection').value,
+      planned_month:      document.getElementById('editUnitMonth').value,
       image_url:          document.getElementById('editUnitImage').value.trim(),
       embed_url:          document.getElementById('editUnitEmbed').value.trim(),
       summary:            document.getElementById('editUnitSummary').value.trim(),
