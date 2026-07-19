@@ -335,12 +335,10 @@ async function loadGroupData() {
 
 function renderSectionNav() {
   const nav = document.getElementById('sectionNav');
-  const cur = parseInt(groupData.current_section) || 1;
-
   nav.innerHTML = SECTIONS.map(s => {
     const isDone    = sectionContent['section_'+s.num] ? true : false;
     const isCurrent = s.num === currentSection;
-    const isLocked  = s.num > cur;
+    const isLocked  = false; // נעילת סעיפים כבויה לפי בקשת המורה — כל הסעיפים פתוחים תמיד
     const cls = isLocked ? 'locked' : isDone ? 'done' : '';
     const active = isCurrent ? 'active' : '';
     const check = isDone ? '✅' : isLocked ? '🔒' : '';
@@ -377,8 +375,7 @@ function navigateTo(num) {
     </div>
   `).join('');
 
-  const cur = parseInt(groupData.current_section) || 1;
-  const isLocked = num > cur;
+  const isLocked = false; // נעילת סעיפים כבויה לפי בקשת המורה — כל הסעיפים פתוחים תמיד
 
   const siteHTML = num === 1 ? `
     <div class="field-group" style="padding:16px;background:var(--dark2);border:1px solid rgba(255,255,255,0.08);border-radius:12px;">
