@@ -506,9 +506,8 @@ window.onload = async function() {
   if (!stored) { window.location.href = TICHER_URL; return; }
   currentUser = JSON.parse(stored);
 
-  const startSection = parseInt(sessionStorage.getItem('currentSection')) || 1;
   await loadGroupData();
-  navigateTo(startSection);
+  showLessonsIndex(); // השיעורים הם התצוגה הראשונה שהתלמיד רואה, כמו אצל המורה
 };
 
 async function callAPI(action, params = {}) {
