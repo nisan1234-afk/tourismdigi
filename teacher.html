@@ -613,9 +613,16 @@
       <div id="fieldsQuestion" class="block-form-section">
         <div class="form-group"><label>נוסח השאלה</label><textarea id="blockQuestionPrompt" rows="3"></textarea></div>
         <div class="form-group">
+          <label>סוג תשובה</label>
+          <select id="blockAnswerScope">
+            <option value="learning">תשובת למידה — נשמרת ומנוקדת, לא מיוצאת לתוצר</option>
+            <option value="project">תשובת תוצר — מיוצאת לסעיף בתוצר אחרי אישור מורה</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>לאיזה שדה בפרויקט זה מתחבר</label>
           <select id="blockTargetField"></select>
-          <div class="form-hint3">התשובה של הקבוצה תוצג בעמוד הסעיף הזה, לצד השדות הרגילים.</div>
+          <div class="form-hint3">התשובה של הקבוצה תוצג בעמוד הסעיף הזה, לצד השדות הרגילים. אם "תשובת תוצר" נבחר למעלה, זה גם קובע לאיזה פרק היא תיכנס בממצאים.</div>
         </div>
       </div>
 
@@ -659,6 +666,13 @@
 
       <div id="fieldsQuestionStructured" class="block-form-section">
         <div class="form-group"><label>הקדמה / נוסח השאלה</label><textarea id="blockSQPrompt" rows="3"></textarea></div>
+        <div class="form-group">
+          <label>סוג תשובה</label>
+          <select id="blockSQAnswerScope">
+            <option value="project">תשובת תוצר — מיוצאת לסעיף בתוצר אחרי אישור מורה</option>
+            <option value="learning">תשובת למידה — נשמרת ומנוקדת, לא מיוצאת לתוצר</option>
+          </select>
+        </div>
         <div class="form-group">
           <label>קטגוריות לבחירה מרובה — שורה לכל קטגוריה</label>
           <textarea id="blockSQCategories" rows="5" placeholder="קטגוריה ראשונה&#10;קטגוריה שנייה"></textarea>
@@ -1237,6 +1251,15 @@ function populateTargetFieldOptions(selected, selectId) {
   }).join('');
 }
 
+/** מוצא לאיזה סעיף (1-8) שייך שדה נתון, לפי FIELDS_BY_SECTION — כדי לגזור project_section אוטומטית מ-target_field. */
+function sectionNumForField(fieldId) {
+  for (let num = 1; num < FIELDS_BY_SECTION.length; num++) {
+    const sec = FIELDS_BY_SECTION[num];
+    if (sec && sec.fields.some(f => f.id === fieldId)) return num;
+  }
+  return '';
+}
+
 function openBlockForm(blockId) {
   const idx = parseInt(document.getElementById('blocksUnitIdx').value);
   const u = allUnits[idx];
@@ -1257,6 +1280,7 @@ function openBlockForm(blockId) {
   document.getElementById('blockGameFeedbackIncorrect').value = block && !Array.isArray(block.game_data) && block.game_data ? (block.game_data.feedbackIncorrect || '') : '';
 
   document.getElementById('blockQuestionPrompt').value = block ? (block.question_prompt || '') : '';
+  document.getElementById('blockAnswerScope').value = block ? (block.answer_scope || 'learning') : 'learning';
   populateTargetFieldOptions(block ? block.target_field : '', 'blockTargetField');
 
   const quizData = block && block.block_type === 'quiz' ? (block.game_data || {}) : {};
@@ -1276,6 +1300,7 @@ function openBlockForm(blockId) {
 
   const sqData = block && block.block_type === 'question_structured' ? (block.game_data || {}) : {};
   document.getElementById('blockSQPrompt').value = block && block.block_type === 'question_structured' ? (block.question_prompt || '') : '';
+  document.getElementById('blockSQAnswerScope').value = block ? (block.answer_scope || 'project') : 'project';
   document.getElementById('blockSQCategories').value = (sqData.categories || []).join('\n');
   document.getElementById('blockSQFillPrompt').value = sqData.fillPrompt || '';
   document.getElementById('blockSQEvidenceLabel').value = sqData.evidenceLabel || '';
@@ -1347,10 +1372,14 @@ function buildBlockPayload(type) {
     };
   }
   if (type === 'question') {
+    const answerScope = document.getElementById('blockAnswerScope').value;
+    const targetField = document.getElementById('blockTargetField').value;
     return {
       title,
       question_prompt: document.getElementById('blockQuestionPrompt').value.trim(),
-      target_field: document.getElementById('blockTargetField').value
+      target_field: targetField,
+      answer_scope: answerScope,
+      project_section: answerScope === 'project' ? sectionNumForField(targetField) : ''
     };
   }
   if (type === 'quiz') {
@@ -1385,10 +1414,14 @@ function buildBlockPayload(type) {
     };
   }
   if (type === 'question_structured') {
+    const answerScope = document.getElementById('blockSQAnswerScope').value;
+    const targetField = document.getElementById('blockSQTargetField').value;
     return {
       title,
       question_prompt: document.getElementById('blockSQPrompt').value.trim(),
-      target_field: document.getElementById('blockSQTargetField').value,
+      target_field: targetField,
+      answer_scope: answerScope,
+      project_section: answerScope === 'project' ? sectionNumForField(targetField) : '',
       game_data: {
         categories: parseLines(document.getElementById('blockSQCategories').value),
         fillPrompt: document.getElementById('blockSQFillPrompt').value.trim(),
