@@ -82,10 +82,22 @@
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
     .partner-name { font-size: 12px; color: var(--muted); }
 
-    /* SIDE BUTTONS (chatbot / files / backup / lessons) */
-    .lessons-btn, .files-btn, .chatbot-btn { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border-radius: 12px; font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; text-align: right; transition: all 0.2s; border: 1px solid; }
-    .lessons-btn { background: rgba(30,144,255,0.08); border-color: rgba(30,144,255,0.28); color: var(--blue-light); }
-    .lessons-btn:hover { background: rgba(30,144,255,0.16); transform: translateY(-1px); }
+    /* SIDE BUTTONS (chatbot / files / backup) */
+    .files-btn, .chatbot-btn { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border-radius: 12px; font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; text-align: right; transition: all 0.2s; border: 1px solid; }
+
+    /* LESSONS — כניסה בולטת בראש הדשבורד, מעל "פרויקט" */
+    .lessons-hero {
+      display: flex; align-items: center; gap: 12px; padding: 14px 16px; margin-bottom: 16px;
+      border-radius: 14px; cursor: pointer; text-decoration: none; color: inherit;
+      background: linear-gradient(135deg, var(--blue), var(--teal));
+      box-shadow: 0 6px 18px rgba(30,144,255,0.28);
+      transition: all 0.2s;
+    }
+    .lessons-hero:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(30,144,255,0.35); }
+    .lessons-hero-icon { font-size: 24px; flex-shrink: 0; }
+    .lessons-hero-title { font-family: var(--font-display); font-size: 15px; font-weight: 700; color: #fff; }
+    .lessons-hero-desc { font-size: 11px; color: rgba(255,255,255,0.85); margin-top: 2px; }
+    .lessons-hero-arrow { margin-inline-start: auto; font-size: 16px; color: #fff; }
     .files-btn { background: rgba(14,158,143,0.08); border-color: rgba(14,158,143,0.28); color: var(--teal); }
     .files-btn:hover { background: rgba(14,158,143,0.16); transform: translateY(-1px); }
     .chatbot-btn { margin-top: auto; background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.28); color: var(--purple-light); }
@@ -289,13 +301,13 @@
       }
     }
     button, .btn-sm, .btn-nav, .btn-back, .btn-save, .btn-next, .btn-prev,
-    .lessons-btn, .files-btn, .chatbot-btn, .game-reset-btn,
+    .lessons-hero, .files-btn, .chatbot-btn, .game-reset-btn,
     .lessons-modal-close, .files-close, .chatbot-close, .present-nav-btn,
     .files-upload-btn, .lesson-section-link {
       transition: transform 0.15s cubic-bezier(.34,1.2,.64,1), box-shadow 0.15s ease, filter 0.15s ease;
     }
     button:not(:disabled):active, .btn-sm:active, .btn-nav:not(:disabled):active, .btn-back:active,
-    .lessons-btn:active, .files-btn:active, .chatbot-btn:active, .game-reset-btn:active,
+    .lessons-hero:active, .files-btn:active, .chatbot-btn:active, .game-reset-btn:active,
     .lessons-modal-close:active, .files-close:active, .chatbot-close:active,
     .present-nav-btn:not(:disabled):active, .files-upload-btn:active, .lesson-section-link:active {
       transform: scale(0.95);
@@ -353,10 +365,18 @@
       <div class="partner-name" id="partnerLabel">חברי הקבוצה: טוען...</div>
     </div>
 
-    <div class="sidebar-title">הסעיפים</div>
+    <a class="lessons-hero" onclick="openLessons()">
+      <div class="lessons-hero-icon">📚</div>
+      <div>
+        <div class="lessons-hero-title">השיעורים שלי</div>
+        <div class="lessons-hero-desc">חומר לימוד, משחקים ושאלות</div>
+      </div>
+      <div class="lessons-hero-arrow">←</div>
+    </a>
+
+    <div class="sidebar-title">פרויקט</div>
     <div id="sectionNav"></div>
 
-    <button class="lessons-btn" onclick="openLessons()">📚 השיעורים שלי</button>
     <button class="files-btn" onclick="toggleFiles()">📎 קבצים</button>
     <button class="files-btn" onclick="toggleBackup()">💾 גיבוי ושחזור</button>
     <button class="chatbot-btn" onclick="toggleChatbot()">🤖 עזרה מהבוט</button>
