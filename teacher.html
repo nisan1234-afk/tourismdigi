@@ -264,6 +264,39 @@
     .present-slide .fc-card { min-height: 160px; font-size: 22px; padding: 40px 24px; }
     .present-slide .memory-progress, .present-slide .fc-progress { font-size: 15px; }
     .present-slide .gloss-tip { font-size: 14px; max-width: 320px; }
+
+    /* ===== מיקרו-אינטראקציות: פידבק מיידי בלחיצה (מסקנת המועצה) ===== */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+    button, .btn-sm, .btn-back, .btn-logout, .btn-primary, .btn-success, .btn-warning, .btn-danger,
+    .btn-nav, .btn-prev, .btn-next, .tab-btn, .btn-modal-cancel, .btn-modal-confirm,
+    .game-reset-btn, .present-nav-btn, .block-row-actions button, .add-member-row button,
+    .member-remove, .toggle-slider {
+      transition: transform 0.15s cubic-bezier(.34,1.2,.64,1), box-shadow 0.15s ease, filter 0.15s ease;
+    }
+    button:not(:disabled):active, .btn-sm:active, .btn-back:active, .btn-logout:active,
+    .btn-primary:active, .btn-success:active, .btn-warning:active, .btn-danger:active,
+    .btn-nav:not(:disabled):active, .tab-btn:active, .btn-modal-cancel:active, .btn-modal-confirm:active,
+    .game-reset-btn:active, .present-nav-btn:not(:disabled):active,
+    .block-row-actions button:active, .member-remove:active {
+      transform: scale(0.95);
+    }
+    .unit-card, .stat-card, .lanswer-card { transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.2s ease; }
+    .unit-card:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,0,0,0.3); }
+    tr { transition: background 0.15s ease; }
+    .fc-card { transition: transform 0.15s ease; }
+    .fc-card:active { transform: scale(0.98); }
+    .memory-tile { transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease; }
+    .memory-tile:not(.matched):active { transform: scale(0.93); }
+    input[type=text], input[type=email], select, textarea {
+      transition: transform 0.1s ease, border-color 0.2s ease, background 0.2s ease;
+    }
   </style>
 </head>
 <body>

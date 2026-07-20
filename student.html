@@ -272,6 +272,45 @@
       .section-info { display: none; }
       .chatbot-panel { width: calc(100% - 32px); left: 16px; }
     }
+
+    /* ===== מיקרו-אינטראקציות: פידבק מיידי בלחיצה (מסקנת המועצה — זה מה שמתקן את "הרגליים", לא תפאורה) ===== */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+      }
+    }
+    button, .btn-sm, .btn-nav, .btn-back, .btn-save, .btn-next, .btn-prev,
+    .lessons-btn, .files-btn, .chatbot-btn, .game-reset-btn,
+    .lessons-modal-close, .files-close, .chatbot-close, .present-nav-btn,
+    .files-upload-btn, .lesson-section-link {
+      transition: transform 0.15s cubic-bezier(.34,1.2,.64,1), box-shadow 0.15s ease, filter 0.15s ease;
+    }
+    button:not(:disabled):active, .btn-sm:active, .btn-nav:not(:disabled):active, .btn-back:active,
+    .lessons-btn:active, .files-btn:active, .chatbot-btn:active, .game-reset-btn:active,
+    .lessons-modal-close:active, .files-close:active, .chatbot-close:active,
+    .present-nav-btn:not(:disabled):active, .files-upload-btn:active, .lesson-section-link:active {
+      transform: scale(0.95);
+    }
+    .lesson-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .lesson-card:hover { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(0,0,0,0.3); }
+    .section-item { transition: background 0.2s ease, transform 0.1s ease; }
+    .section-item:not(.locked):active { transform: scale(0.97); }
+    .memory-tile { transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease; }
+    .memory-tile:not(.matched):active { transform: scale(0.93); }
+    .fc-card { transition: transform 0.15s ease; }
+    .fc-card:active { transform: scale(0.98); }
+    .field-input, .field-textarea { transition: transform 0.1s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease; }
+
+    /* רגע חתימה #1: "חותמת דרכון" חד-פעמית כשסעיף מושלם לראשונה */
+    @keyframes stampPop {
+      0%   { transform: scale(1.7) rotate(-10deg); opacity: 0; }
+      55%  { transform: scale(0.9) rotate(4deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+    .section-icon.stamp-pop { animation: stampPop 0.55s cubic-bezier(.34,1.56,.64,1); }
   </style>
 </head>
 <body>
@@ -661,6 +700,7 @@ function onFieldChange() {
 async function saveSection(auto = false) {
   if (!groupData) return;
   const sec = SECTIONS[currentSection - 1];
+  const wasDone = !!sectionContent['section_' + currentSection];
   const data = {};
   sec.fields.forEach(f => {
     const el = document.getElementById('field_' + f.id);
@@ -682,9 +722,22 @@ async function saveSection(auto = false) {
     if (status) { status.textContent = auto ? 'נשמר אוטומטית ✓' : 'נשמר ✓'; status.className = 'save-status saved'; }
     updateProgress();
     renderSectionNav();
+    if (!wasDone && sectionContent['section_' + currentSection]) stampSectionComplete(currentSection);
   } catch(e) {
     if (status) { status.textContent = 'שגיאה בשמירה'; status.className = 'save-status'; }
   }
+}
+
+/** רגע חתימה חד-פעמי: "חותמת דרכון" על הסעיף בסיידבר בפעם הראשונה שהוא מושלם. */
+function stampSectionComplete(num) {
+  requestAnimationFrame(() => {
+    const items = document.querySelectorAll('.section-item');
+    const icon = items[num - 1] && items[num - 1].querySelector('.section-icon');
+    if (!icon) return;
+    icon.classList.remove('stamp-pop');
+    void icon.offsetWidth; // מאתחל את האנימציה אם היא כבר רצה פעם קודם
+    icon.classList.add('stamp-pop');
+  });
 }
 
 async function saveAndNext() {
