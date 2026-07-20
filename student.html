@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>תיירות דיגיטלית — עבודת הקבוצה</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1E90FF">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="כיתה פלוס">
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800&family=Secular+One&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -446,6 +452,9 @@
 </div>
 
 <script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function(){});
+}
 const TICHER_URL  = 'https://nisan1234-afk.github.io/TICHER/';
 const API_URL     = 'https://script.google.com/macros/s/AKfycbwf3-MNZBBi64zXcNH7wfhBRoEBl9brtQ9QRI4Won5RmUIOrl_WBivN6uI5NAp6Mc0h/exec';
 // מפתח Gemini API נשמר בשרת (Apps Script Script Properties) — לא כאן, כדי שלא ייחשף לציבור ב-GitHub Pages
@@ -937,10 +946,15 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function gameDataPairs(gameData) {
+  if (!gameData) return [];
+  return Array.isArray(gameData) ? gameData : (gameData.pairs || []);
+}
+
 /** מוצא את זוגות מושג/הסבר של יחידה (מבלוק המשחק שלה, אם יש) — משמש כמילון לטולטיפים. */
 function getGlossaryForLesson(lesson) {
-  const gameBlock = (lesson.blocks || []).find(b => b.block_type === 'game' && b.game_data && b.game_data.length);
-  return gameBlock ? gameBlock.game_data : [];
+  const gameBlock = (lesson.blocks || []).find(b => b.block_type === 'game' && gameDataPairs(b.game_data).length);
+  return gameBlock ? gameDataPairs(gameBlock.game_data) : [];
 }
 
 /**
@@ -1008,11 +1022,21 @@ function renderLessonBlocks(lesson) {
       ${lesson.assignment_summary ? `<div class="lesson-assignment">📝 ${glossarize(lesson.assignment_summary, glossary)}</div>` : ''}`;
   }
   return lesson.blocks.map(b => {
-    if (b.block_type === 'teach')    return renderTeachBlock(b, glossary);
-    if (b.block_type === 'game')     return renderGameBlockShell(b);
-    if (b.block_type === 'question') return renderQuestionBlock(lesson.unit_id, b, glossary);
+    if (b.block_type === 'teach')               return renderTeachBlock(b, glossary);
+    if (b.block_type === 'game')                return renderGameBlockShell(b);
+    if (b.block_type === 'question')            return renderQuestionBlock(lesson.unit_id, b, glossary);
+    if (b.block_type === 'quiz')                return renderQuizBlock(b, glossary);
+    if (b.block_type === 'question_structured') return renderStructuredQuestionBlock(lesson.unit_id, b, glossary);
     return '';
   }).join('');
+}
+
+function findBlockById(blockId) {
+  for (const l of allLessons) {
+    const found = (l.blocks || []).find(b => b.block_id === blockId);
+    if (found) return found;
+  }
+  return null;
 }
 
 function renderTeachBlock(block, glossary) {
@@ -1045,6 +1069,104 @@ function renderQuestionBlock(unitId, block, glossary) {
     </div>`;
 }
 
+const quizConfig = {};
+
+function renderQuizBlock(block, glossary) {
+  const q = block.game_data || {};
+  quizConfig[block.block_id] = q;
+  const options = (q.options || []).map((opt, i) => `
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;">
+      <input type="checkbox" class="quiz-opt" data-block="${block.block_id}" data-idx="${i}" />
+      <span>${escapeHtml(opt)}</span>
+    </label>`).join('');
+  return `
+    <div class="lesson-block lesson-block-question">
+      <div class="block-title">✅ ${escapeHtml(block.title || 'בדיקת הבנה קצרה')}</div>
+      <div class="block-question-prompt">${glossarize(block.question_prompt, glossary)}</div>
+      <div class="quiz-options">${options}</div>
+      <div class="qa-row">
+        <button class="btn-nav btn-next" onclick="checkQuizAnswer('${block.block_id}')">בדוק תשובה</button>
+      </div>
+      <div class="qa-feedback" id="quiz_feedback_${block.block_id}"></div>
+    </div>`;
+}
+
+function checkQuizAnswer(blockId) {
+  const q = quizConfig[blockId] || {};
+  const correct = (q.correct || []).slice().sort();
+  const checked = [...document.querySelectorAll('.quiz-opt[data-block="' + blockId + '"]:checked')]
+    .map(el => parseInt(el.dataset.idx, 10)).sort();
+  const isMatch = correct.length === checked.length && correct.every((v, i) => v === checked[i]);
+  const feedbackEl = document.getElementById('quiz_feedback_' + blockId);
+  if (feedbackEl) {
+    feedbackEl.textContent = isMatch ? (q.feedbackCorrect || '✓ נכון!') : (q.feedbackIncorrect || 'כמעט. נסו שוב.');
+    feedbackEl.style.color = isMatch ? 'var(--success)' : 'var(--warning)';
+  }
+}
+
+function renderStructuredQuestionBlock(unitId, block, glossary) {
+  const sq = block.game_data || {};
+  const scorePill = (block.saved_score !== null && block.saved_score !== undefined)
+    ? `<span class="qa-score-pill" id="qa_score_${block.block_id}">⭐ ${block.saved_score}/10</span>` : `<span id="qa_score_${block.block_id}"></span>`;
+  const feedback = block.saved_feedback
+    ? `<div class="qa-feedback" id="qa_feedback_${block.block_id}">${escapeHtml(block.saved_feedback)}</div>` : `<div class="qa-feedback" id="qa_feedback_${block.block_id}"></div>`;
+
+  const categories = (sq.categories || []).map((cat, i) => `
+    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;">
+      <input type="checkbox" class="sq-cat" data-block="${block.block_id}" data-idx="${i}" />
+      <span>${escapeHtml(cat)}</span>
+    </label>`).join('');
+
+  const explainRows = (sq.explainParts || []).map((label, i) => `
+    <div class="field-group">
+      <div class="field-label">${escapeHtml(label)}</div>
+      <input type="text" class="field-input" id="sq_explain_${block.block_id}_${i}" />
+    </div>`).join('');
+
+  const checklist = (sq.checklist || []).length
+    ? `<div class="field-hint">לפני שמירה, ודאו:<br>${sq.checklist.map(c => '☐ ' + escapeHtml(c)).join('<br>')}</div>` : '';
+
+  return `
+    <div class="lesson-block lesson-block-question">
+      <div class="block-title">📝 ${escapeHtml(block.title || 'שאלה אישית')}${scorePill}</div>
+      <div class="block-question-prompt">${glossarize(block.question_prompt, glossary)}</div>
+      ${categories ? `<div class="field-group"><div class="field-label">סמנו קטגוריות רלוונטיות:</div>${categories}</div>` : ''}
+      ${sq.fillPrompt ? `<div class="field-group"><div class="field-label">${escapeHtml(sq.fillPrompt)}</div><input type="text" class="field-input" id="sq_fill_${block.block_id}" /></div>` : ''}
+      ${sq.evidenceLabel ? `<div class="field-group"><div class="field-label">${escapeHtml(sq.evidenceLabel)}</div><input type="text" class="field-input" id="sq_evidence_${block.block_id}" /></div>` : ''}
+      ${explainRows}
+      ${checklist}
+      ${block.saved_answer ? `<div class="field-hint">התשובה השמורה שלכם:<br>${escapeHtml(block.saved_answer).replace(/\n/g,'<br>')}</div>` : ''}
+      <div class="qa-row">
+        <button class="btn-nav btn-next" onclick="saveSQBlock('${unitId}','${block.block_id}')">💾 שמור תשובה</button>
+        <span class="qa-status" id="qa_status_${block.block_id}"></span>
+      </div>
+      ${feedback}
+    </div>`;
+}
+
+function saveSQBlock(unitId, blockId) {
+  const block = findBlockById(blockId);
+  if (!block) return;
+  const sq = block.game_data || {};
+  const catBoxes = [...document.querySelectorAll('.sq-cat[data-block="' + blockId + '"]:checked')]
+    .map(el => (sq.categories || [])[parseInt(el.dataset.idx, 10)]).filter(Boolean);
+  const fillEl = document.getElementById('sq_fill_' + blockId);
+  const evidenceEl = document.getElementById('sq_evidence_' + blockId);
+
+  const lines = [];
+  if (catBoxes.length) lines.push('קטגוריות שנבחרו: ' + catBoxes.join(', '));
+  if (fillEl && fillEl.value.trim()) lines.push((sq.fillPrompt || 'השלמה:') + ' ' + fillEl.value.trim());
+  if (evidenceEl && evidenceEl.value.trim()) lines.push((sq.evidenceLabel || 'הוכחה:') + ' ' + evidenceEl.value.trim());
+  (sq.explainParts || []).forEach((label, i) => {
+    const el = document.getElementById('sq_explain_' + blockId + '_' + i);
+    if (el && el.value.trim()) lines.push(label + ' ' + el.value.trim());
+  });
+
+  const status = document.getElementById('qa_status_' + blockId);
+  if (!lines.length) { if (status) { status.textContent = 'נא למלא לפחות שדה אחד'; status.style.color = 'var(--warning)'; } return; }
+  saveLessonAnswerCore(unitId, blockId, lines.join('\n'), status);
+}
+
 function renderGameBlockShell(block) {
   return `
     <div class="lesson-block lesson-block-game">
@@ -1073,8 +1195,12 @@ function buildMemoryTiles(pairs) {
 }
 
 function initMemoryState(block) {
-  const pairs = block.game_data || [];
-  return { pairs, tiles: buildMemoryTiles(pairs), matched: new Array(pairs.length * 2).fill(false), openIdx: [], busy: false };
+  const pairs = gameDataPairs(block.game_data);
+  const meta  = Array.isArray(block.game_data) ? {} : (block.game_data || {});
+  return {
+    pairs, tiles: buildMemoryTiles(pairs), matched: new Array(pairs.length * 2).fill(false), openIdx: [], busy: false,
+    feedbackCorrect: meta.feedbackCorrect || '', feedbackIncorrect: meta.feedbackIncorrect || '', lastFeedback: ''
+  };
 }
 
 function resetMemoryGame(blockId) {
@@ -1105,6 +1231,7 @@ function paintMemory(blockId) {
       }).join('')}
     </div>
     ${solvedPairs === totalPairs && totalPairs > 0 ? '<div class="memory-win">🎉 מצאתם את כל הזוגות!</div>' : ''}
+    ${st.lastFeedback ? `<div class="qa-feedback">${escapeHtml(st.lastFeedback)}</div>` : ''}
   `;
 }
 
@@ -1117,6 +1244,7 @@ function clickMemoryTile(blockId, i) {
     paintMemory(blockId);
     const [a, b] = st.openIdx;
     const isMatch = st.tiles[a].pairIdx === st.tiles[b].pairIdx && st.tiles[a].side !== st.tiles[b].side;
+    st.lastFeedback = isMatch ? st.feedbackCorrect : st.feedbackIncorrect;
     setTimeout(() => {
       if (isMatch) { st.matched[a] = true; st.matched[b] = true; }
       st.openIdx = [];
@@ -1131,7 +1259,7 @@ function clickMemoryTile(blockId, i) {
 // ---- כרטיסיות (flashcards) ----
 
 function initFlashState(block) {
-  return { pairs: block.game_data || [], idx: 0, flipped: false };
+  return { pairs: gameDataPairs(block.game_data), idx: 0, flipped: false };
 }
 
 function paintFlash(blockId) {
@@ -1281,9 +1409,13 @@ function renderPresentSlide() {
   document.getElementById('presentNextBtn').disabled = presentIdx === blocks.length - 1;
 
   if (block.block_type === 'teach') {
-    stage.innerHTML = renderTeachBlock(block);
+    stage.innerHTML = renderTeachBlock(block, glossary);
   } else if (block.block_type === 'question') {
     stage.innerHTML = renderQuestionBlock(presentLesson.unit_id, block, glossary);
+  } else if (block.block_type === 'quiz') {
+    stage.innerHTML = renderQuizBlock(block, glossary);
+  } else if (block.block_type === 'question_structured') {
+    stage.innerHTML = renderStructuredQuestionBlock(presentLesson.unit_id, block, glossary);
   } else if (block.block_type === 'game') {
     stage.innerHTML = renderGameBlockShell(block);
     if (!gameStates[block.block_id]) gameStates[block.block_id] = block.game_type === 'memory' ? initMemoryState(block) : initFlashState(block);

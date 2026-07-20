@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>תיירות דיגיטלית — ממשק מורה</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1E90FF">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="כיתה פלוס">
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800&family=Secular+One&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -178,6 +184,8 @@
     .block-type-badge.teach    { background: rgba(30,144,255,0.15); color: var(--blue-light); }
     .block-type-badge.game     { background: rgba(14,158,143,0.15); color: var(--teal); }
     .block-type-badge.question { background: rgba(139,92,246,0.15); color: var(--purple-light); }
+    .block-type-badge.quiz     { background: rgba(18,166,110,0.15); color: var(--success); }
+    .block-type-badge.question_structured { background: rgba(255,122,61,0.15); color: var(--warning); }
     .block-row-title { flex: 1; font-size: 13px; font-weight: 600; }
     .block-row-actions { display: flex; gap: 4px; }
     .block-row-actions button { background: transparent; border: 1px solid rgba(27,42,61,0.1); color: var(--muted); border-radius: 7px; padding: 4px 8px; font-size: 12px; cursor: pointer; transition: all 0.2s; }
@@ -207,6 +215,8 @@
       .stats-row { grid-template-columns: repeat(3, 1fr); }
       .main { padding: 14px; }
       .topbar { padding: 0 14px; }
+      .sections-detail { grid-template-columns: repeat(2, 1fr); }
+      .modal { padding: 20px; }
     }
 
     /* מצב מצגת (הקרנה בכיתה) */
@@ -533,6 +543,8 @@
           <option value="teach">📖 הוראה</option>
           <option value="game">🎮 משחק תרגול</option>
           <option value="question">🎯 שאלה אישית</option>
+          <option value="quiz">✅ בדיקת הבנה קצרה</option>
+          <option value="question_structured">📝 שאלה אישית מובנית</option>
         </select>
       </div>
       <div class="form-group"><label>כותרת</label><input type="text" id="blockTitle" /></div>
@@ -563,6 +575,14 @@
           <textarea id="blockGamePairs" rows="6" placeholder="מושג ראשון | הסבר קצר&#10;מושג שני | הסבר קצר"></textarea>
           <div class="form-hint3">כל שורה: מושג, אחריו סימן | ואז ההסבר/דוגמה. לפחות 3 זוגות מומלץ.</div>
         </div>
+        <div class="form-group">
+          <label>משוב בהתאמה נכונה (אופציונלי)</label>
+          <input type="text" id="blockGameFeedbackCorrect" placeholder="נכון! הדוגמה מתאימה לקטגוריה." />
+        </div>
+        <div class="form-group">
+          <label>משוב בהתאמה שגויה (אופציונלי)</label>
+          <input type="text" id="blockGameFeedbackIncorrect" placeholder="כמעט. נסו שוב." />
+        </div>
       </div>
 
       <div id="fieldsQuestion" class="block-form-section">
@@ -571,6 +591,43 @@
           <label>לאיזה שדה בפרויקט זה מתחבר</label>
           <select id="blockTargetField"></select>
           <div class="form-hint3">התשובה של הקבוצה תוצג בעמוד הסעיף הזה, לצד השדות הרגילים.</div>
+        </div>
+      </div>
+
+      <div id="fieldsQuiz" class="block-form-section">
+        <div class="form-group"><label>נוסח השאלה (תרחיש)</label><textarea id="blockQuizPrompt" rows="3"></textarea></div>
+        <div class="form-group">
+          <label>אפשרויות בחירה — שורה לכל אפשרות</label>
+          <textarea id="blockQuizOptions" rows="5" placeholder="אפשרות ראשונה&#10;אפשרות שנייה"></textarea>
+        </div>
+        <div class="form-group">
+          <label>מספרי האפשרויות הנכונות (מופרד בפסיקים, החל מ-1)</label>
+          <input type="text" id="blockQuizCorrect" placeholder="לדוגמה: 1,3,4" />
+        </div>
+        <div class="form-group"><label>משוב בתשובה נכונה</label><input type="text" id="blockQuizFeedbackCorrect" placeholder="נכון!" /></div>
+        <div class="form-group"><label>משוב בתשובה שגויה</label><input type="text" id="blockQuizFeedbackIncorrect" placeholder="כמעט. נסו שוב." /></div>
+        <div class="form-hint3">בדיקה מיידית לתלמיד — לא נשמרת ולא מנוקדת, רק לחיזוק ההבנה.</div>
+      </div>
+
+      <div id="fieldsQuestionStructured" class="block-form-section">
+        <div class="form-group"><label>הקדמה / נוסח השאלה</label><textarea id="blockSQPrompt" rows="3"></textarea></div>
+        <div class="form-group">
+          <label>קטגוריות לבחירה מרובה — שורה לכל קטגוריה</label>
+          <textarea id="blockSQCategories" rows="5" placeholder="קטגוריה ראשונה&#10;קטגוריה שנייה"></textarea>
+        </div>
+        <div class="form-group"><label>משפט השלמה</label><input type="text" id="blockSQFillPrompt" placeholder="האתר שבחרנו בולט בתחום __________." /></div>
+        <div class="form-group"><label>תווית שדה ההוכחה</label><input type="text" id="blockSQEvidenceLabel" placeholder="קישור / צילום מסך / תמונה / שם האפליקציה" /></div>
+        <div class="form-group">
+          <label>שלבי הסבר במילים שלהם — שורה לכל שלב</label>
+          <textarea id="blockSQExplainParts" rows="4" placeholder="מצאנו שהאתר משתמש ב-&#10;הדבר עוזר לתיירים בכך ש-&#10;לדעתנו השימוש הזה טוב / חלקי / חלש, משום ש-"></textarea>
+        </div>
+        <div class="form-group">
+          <label>צ'קליסט לפני שמירה — שורה לכל פריט</label>
+          <textarea id="blockSQChecklist" rows="4" placeholder="נתנו דוגמה מהאתר שלנו.&#10;צירפנו הוכחה."></textarea>
+        </div>
+        <div class="form-group">
+          <label>לאיזה שדה בפרויקט זה מתחבר</label>
+          <select id="blockSQTargetField"></select>
         </div>
       </div>
 
@@ -606,6 +663,9 @@
 </div>
 
 <script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function(){});
+}
 const TICHER_URL = 'https://nisan1234-afk.github.io/TICHER/';
 const API_URL    = 'https://script.google.com/macros/s/AKfycbwf3-MNZBBi64zXcNH7wfhBRoEBl9brtQ9QRI4Won5RmUIOrl_WBivN6uI5NAp6Mc0h/exec';
 
@@ -1039,7 +1099,7 @@ function renderBlocksList() {
 
   if (!blocks.length) { list.innerHTML = '<div class="empty-state">אין עדיין בלוקים ביחידה זו.</div>'; return; }
 
-  const typeLabel = { teach: '📖 הוראה', game: '🎮 משחק', question: '🎯 שאלה' };
+  const typeLabel = { teach: '📖 הוראה', game: '🎮 משחק', question: '🎯 שאלה', quiz: '✅ בדיקת הבנה', question_structured: '📝 שאלה מובנית' };
   list.innerHTML = blocks.map((b, i) => `
     <div class="block-row">
       <span class="block-type-badge ${b.block_type}">${typeLabel[b.block_type] || b.block_type}</span>
@@ -1054,8 +1114,8 @@ function renderBlocksList() {
   `).join('');
 }
 
-function populateTargetFieldOptions(selected) {
-  const sel = document.getElementById('blockTargetField');
+function populateTargetFieldOptions(selected, selectId) {
+  const sel = document.getElementById(selectId || 'blockTargetField');
   sel.innerHTML = FIELDS_BY_SECTION.map((sec, num) => {
     if (!sec) return '';
     return `<optgroup label="סעיף ${num} — ${sec.name}">` +
@@ -1076,11 +1136,31 @@ function openBlockForm(blockId) {
   document.getElementById('blockMediaType').value = block ? (block.media_type || '') : '';
   document.getElementById('blockMediaUrl').value = block ? (block.media_url || '') : '';
   document.getElementById('blockGameType').value = block ? (block.game_type || 'memory') : 'memory';
-  document.getElementById('blockGamePairs').value = block && block.game_data
-    ? block.game_data.map(p => (p.term||'') + ' | ' + (p.definition||'')).join('\n')
+  const gamePairs = block && Array.isArray(block.game_data) ? block.game_data : (block && block.game_data && block.game_data.pairs) || [];
+  document.getElementById('blockGamePairs').value = gamePairs.length
+    ? gamePairs.map(p => (p.term||'') + ' | ' + (p.definition||'')).join('\n')
     : '';
+  document.getElementById('blockGameFeedbackCorrect').value = block && !Array.isArray(block.game_data) && block.game_data ? (block.game_data.feedbackCorrect || '') : '';
+  document.getElementById('blockGameFeedbackIncorrect').value = block && !Array.isArray(block.game_data) && block.game_data ? (block.game_data.feedbackIncorrect || '') : '';
+
   document.getElementById('blockQuestionPrompt').value = block ? (block.question_prompt || '') : '';
-  populateTargetFieldOptions(block ? block.target_field : '');
+  populateTargetFieldOptions(block ? block.target_field : '', 'blockTargetField');
+
+  const quizData = block && block.block_type === 'quiz' ? (block.game_data || {}) : {};
+  document.getElementById('blockQuizPrompt').value = block && block.block_type === 'quiz' ? (block.question_prompt || '') : '';
+  document.getElementById('blockQuizOptions').value = (quizData.options || []).join('\n');
+  document.getElementById('blockQuizCorrect').value = (quizData.correct || []).map(i => i + 1).join(',');
+  document.getElementById('blockQuizFeedbackCorrect').value = quizData.feedbackCorrect || '';
+  document.getElementById('blockQuizFeedbackIncorrect').value = quizData.feedbackIncorrect || '';
+
+  const sqData = block && block.block_type === 'question_structured' ? (block.game_data || {}) : {};
+  document.getElementById('blockSQPrompt').value = block && block.block_type === 'question_structured' ? (block.question_prompt || '') : '';
+  document.getElementById('blockSQCategories').value = (sqData.categories || []).join('\n');
+  document.getElementById('blockSQFillPrompt').value = sqData.fillPrompt || '';
+  document.getElementById('blockSQEvidenceLabel').value = sqData.evidenceLabel || '';
+  document.getElementById('blockSQExplainParts').value = (sqData.explainParts || []).join('\n');
+  document.getElementById('blockSQChecklist').value = (sqData.checklist || []).join('\n');
+  populateTargetFieldOptions(block ? block.target_field : '', 'blockSQTargetField');
 
   document.getElementById('blockType').disabled = !!block; // לא משנים סוג בלוק קיים, רק יוצרים חדש מהסוג הרצוי
   renderBlockFormFields();
@@ -1098,6 +1178,8 @@ function renderBlockFormFields() {
   document.getElementById('fieldsTeach').classList.toggle('show', type === 'teach');
   document.getElementById('fieldsGame').classList.toggle('show', type === 'game');
   document.getElementById('fieldsQuestion').classList.toggle('show', type === 'question');
+  document.getElementById('fieldsQuiz').classList.toggle('show', type === 'quiz');
+  document.getElementById('fieldsQuestionStructured').classList.toggle('show', type === 'question_structured');
 }
 
 function parseGamePairs(text) {
@@ -1107,22 +1189,77 @@ function parseGamePairs(text) {
   });
 }
 
+function parseLines(text) {
+  return text.split('\n').map(line => line.trim()).filter(Boolean);
+}
+
+function parseIndices(text) {
+  return text.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n > 0).map(n => n - 1);
+}
+
+function buildBlockPayload(type) {
+  const title = document.getElementById('blockTitle').value.trim();
+
+  if (type === 'teach') {
+    return {
+      title,
+      body: document.getElementById('blockBody').value.trim(),
+      media_type: document.getElementById('blockMediaType').value,
+      media_url: document.getElementById('blockMediaUrl').value.trim()
+    };
+  }
+  if (type === 'game') {
+    const pairs = parseGamePairs(document.getElementById('blockGamePairs').value);
+    const feedbackCorrect = document.getElementById('blockGameFeedbackCorrect').value.trim();
+    const feedbackIncorrect = document.getElementById('blockGameFeedbackIncorrect').value.trim();
+    return {
+      title,
+      game_type: document.getElementById('blockGameType').value,
+      game_data: (feedbackCorrect || feedbackIncorrect) ? { pairs, feedbackCorrect, feedbackIncorrect } : pairs
+    };
+  }
+  if (type === 'question') {
+    return {
+      title,
+      question_prompt: document.getElementById('blockQuestionPrompt').value.trim(),
+      target_field: document.getElementById('blockTargetField').value
+    };
+  }
+  if (type === 'quiz') {
+    return {
+      title,
+      question_prompt: document.getElementById('blockQuizPrompt').value.trim(),
+      game_data: {
+        options: parseLines(document.getElementById('blockQuizOptions').value),
+        correct: parseIndices(document.getElementById('blockQuizCorrect').value),
+        feedbackCorrect: document.getElementById('blockQuizFeedbackCorrect').value.trim(),
+        feedbackIncorrect: document.getElementById('blockQuizFeedbackIncorrect').value.trim()
+      }
+    };
+  }
+  if (type === 'question_structured') {
+    return {
+      title,
+      question_prompt: document.getElementById('blockSQPrompt').value.trim(),
+      target_field: document.getElementById('blockSQTargetField').value,
+      game_data: {
+        categories: parseLines(document.getElementById('blockSQCategories').value),
+        fillPrompt: document.getElementById('blockSQFillPrompt').value.trim(),
+        evidenceLabel: document.getElementById('blockSQEvidenceLabel').value.trim(),
+        explainParts: parseLines(document.getElementById('blockSQExplainParts').value),
+        checklist: parseLines(document.getElementById('blockSQChecklist').value)
+      }
+    };
+  }
+  return { title };
+}
+
 async function saveBlockForm() {
   const idx = parseInt(document.getElementById('blocksUnitIdx').value);
   const u = allUnits[idx];
   const blockId = document.getElementById('editBlockId').value;
   const type = document.getElementById('blockType').value;
-
-  const payload = {
-    title: document.getElementById('blockTitle').value.trim(),
-    body: document.getElementById('blockBody').value.trim(),
-    media_type: document.getElementById('blockMediaType').value,
-    media_url: document.getElementById('blockMediaUrl').value.trim(),
-    game_type: document.getElementById('blockGameType').value,
-    game_data: parseGamePairs(document.getElementById('blockGamePairs').value),
-    question_prompt: document.getElementById('blockQuestionPrompt').value.trim(),
-    target_field: document.getElementById('blockTargetField').value
-  };
+  const payload = buildBlockPayload(type);
 
   try {
     if (blockId) {
@@ -1198,9 +1335,14 @@ function logout()  { sessionStorage.removeItem('kitahUser'); window.location.hre
 
 function escapeRegex(str) { return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
+function gameDataPairs(gameData) {
+  if (!gameData) return [];
+  return Array.isArray(gameData) ? gameData : (gameData.pairs || []);
+}
+
 function getGlossaryForLesson(unit) {
-  const gameBlock = (unit.blocks || []).find(b => b.block_type === 'game' && b.game_data && b.game_data.length);
-  return gameBlock ? gameBlock.game_data : [];
+  const gameBlock = (unit.blocks || []).find(b => b.block_type === 'game' && gameDataPairs(b.game_data).length);
+  return gameBlock ? gameDataPairs(gameBlock.game_data) : [];
 }
 
 function glossarize(text, pairs) {
@@ -1285,6 +1427,22 @@ function renderPresentSlide() {
       <div class="present-slide-title">${escapeHtml(block.title || '')}</div>
       <div class="present-slide-body">${glossarize(block.question_prompt, glossary)}</div>
     `;
+  } else if (block.block_type === 'question_structured') {
+    const sq = block.game_data || {};
+    stage.innerHTML = `
+      <div class="present-question-tag">📝 שאלה אישית מובנית — כל קבוצה עונה בעצמה בעמוד שלה</div>
+      <div class="present-slide-title">${escapeHtml(block.title || '')}</div>
+      <div class="present-slide-body">${glossarize(block.question_prompt, glossary)}</div>
+      ${(sq.categories || []).length ? `<div class="present-slide-body" style="font-size:16px;margin-top:12px;">${sq.categories.map(c => '• ' + escapeHtml(c)).join('<br>')}</div>` : ''}
+    `;
+  } else if (block.block_type === 'quiz') {
+    const q = block.game_data || {};
+    stage.innerHTML = `
+      <div class="present-question-tag">✅ בדיקת הבנה קצרה</div>
+      <div class="present-slide-title">${escapeHtml(block.title || '')}</div>
+      <div class="present-slide-body">${glossarize(block.question_prompt, glossary)}</div>
+      <div class="present-slide-body" style="font-size:16px;margin-top:12px;">${(q.options || []).map((o,i) => (q.correct||[]).includes(i) ? `<div>✅ ${escapeHtml(o)}</div>` : `<div>◻️ ${escapeHtml(o)}</div>`).join('')}</div>
+    `;
   } else if (block.block_type === 'game') {
     stage.innerHTML = `
       <div class="present-slide-title">🎮 ${escapeHtml(block.title || '')}</div>
@@ -1307,7 +1465,7 @@ function buildPresentMemoryTiles(pairs) {
 }
 
 function initPresentMemory(block) {
-  const pairs = block.game_data || [];
+  const pairs = gameDataPairs(block.game_data);
   return { pairs, tiles: buildPresentMemoryTiles(pairs), matched: new Array(pairs.length * 2).fill(false), openIdx: [], busy: false };
 }
 
@@ -1321,7 +1479,7 @@ function resetPresentMemory(blockId) {
   paintPresentMemory(blockId);
 }
 
-function initPresentFlash(block) { return { pairs: block.game_data || [], idx: 0, flipped: false }; }
+function initPresentFlash(block) { return { pairs: gameDataPairs(block.game_data), idx: 0, flipped: false }; }
 
 function resetPresentFlash(blockId) {
   const st = presentGameStates[blockId];
