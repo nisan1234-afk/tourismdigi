@@ -169,15 +169,7 @@
       #backupPanel { left: 16px; }
     }
 
-    /* LESSONS BUTTON + MODAL — כרטיס עלייה למטוס (boarding pass) */
-    .lessons-overlay { position: fixed; inset: 0; background: rgba(4,10,18,0.8); backdrop-filter: blur(3px); z-index: 400; display: none; align-items: center; justify-content: center; padding: 24px; }
-    .lessons-overlay.show { display: flex; }
-    .lessons-modal { background: var(--dark2); border: 1px solid rgba(27,42,61,0.1); border-radius: 22px; padding: 0; width: 100%; max-width: 660px; max-height: 85vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 30px 80px rgba(0,0,0,0.6); }
-    .lessons-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid rgba(27,42,61,0.07); background: linear-gradient(135deg, rgba(30,144,255,0.09), transparent); }
-    .lessons-modal-title { font-family: var(--font-display); font-size: 18px; font-weight: 800; }
-    .lessons-modal-close { background: none; border: none; color: var(--muted); font-size: 20px; cursor: pointer; }
-    .lessons-modal-body { flex: 1; overflow-y: auto; padding: 22px 24px; }
-
+    /* LESSONS — כרטיס עלייה למטוס (boarding pass), נפתחות אחת-אחת בתוך תוכן העמוד */
     .lesson-card {
       position: relative;
       background: linear-gradient(160deg, var(--dark3), var(--dark2) 75%);
@@ -302,13 +294,13 @@
     }
     button, .btn-sm, .btn-nav, .btn-back, .btn-save, .btn-next, .btn-prev,
     .lessons-hero, .files-btn, .chatbot-btn, .game-reset-btn,
-    .lessons-modal-close, .files-close, .chatbot-close, .present-nav-btn,
+    .files-close, .chatbot-close, .present-nav-btn,
     .files-upload-btn, .lesson-section-link {
       transition: transform 0.15s cubic-bezier(.34,1.2,.64,1), box-shadow 0.15s ease, filter 0.15s ease;
     }
     button:not(:disabled):active, .btn-sm:active, .btn-nav:not(:disabled):active, .btn-back:active,
     .lessons-hero:active, .files-btn:active, .chatbot-btn:active, .game-reset-btn:active,
-    .lessons-modal-close:active, .files-close:active, .chatbot-close:active,
+    .files-close:active, .chatbot-close:active,
     .present-nav-btn:not(:disabled):active, .files-upload-btn:active, .lesson-section-link:active {
       transform: scale(0.95);
     }
@@ -365,7 +357,7 @@
       <div class="partner-name" id="partnerLabel">חברי הקבוצה: טוען...</div>
     </div>
 
-    <a class="lessons-hero" onclick="openLessons()">
+    <a class="lessons-hero" onclick="showLessonsIndex()">
       <div class="lessons-hero-icon">📚</div>
       <div>
         <div class="lessons-hero-title">השיעורים שלי</div>
@@ -403,19 +395,6 @@
   <div class="chatbot-input-wrap">
     <input class="chatbot-input" id="chatInput" placeholder="כתוב שאלה..." onkeydown="if(event.key==='Enter')sendChat()" />
     <button class="chatbot-send" onclick="sendChat()">שלח</button>
-  </div>
-</div>
-
-<!-- LESSONS -->
-<div class="lessons-overlay" id="lessonsOverlay">
-  <div class="lessons-modal">
-    <div class="lessons-modal-header">
-      <div class="lessons-modal-title">📚 השיעורים שלי</div>
-      <button class="lessons-modal-close" onclick="closeLessons()">×</button>
-    </div>
-    <div class="lessons-modal-body" id="lessonsBody">
-      <div style="text-align:center;color:var(--muted);padding:30px;"><span class="loading-spinner"></span> טוען...</div>
-    </div>
   </div>
 </div>
 
@@ -933,29 +912,78 @@ function fileToBase64(file) {
 
 // ========== שיעורים ==========
 
-function openLessons() {
-  document.getElementById('lessonsOverlay').classList.add('show');
-  loadLessons(); // תמיד טוען מחדש — המורה עשוי לפתוח/לסגור שיעורים בין פתיחה לפתיחה
-}
-
-function closeLessons() {
-  document.getElementById('lessonsOverlay').classList.remove('show');
-}
-
-document.getElementById('lessonsOverlay').addEventListener('click', function(e) {
-  if (e.target === this) closeLessons();
-});
-
-async function loadLessons() {
-  const body = document.getElementById('lessonsBody');
-  body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;"><span class="loading-spinner"></span> טוען...</div>';
+/** מציג את רשימת השיעורים בתוך תוכן העמוד (כמו סעיף) — תמיד טוען מחדש, המורה עשוי לפתוח/לסגור שיעורים בין פתיחה לפתיחה. */
+async function showLessonsIndex() {
+  document.getElementById('sectionContent').innerHTML = `
+    <div class="section-header">
+      <div class="section-title">📚 השיעורים שלי</div>
+      <div class="section-desc">בחרו שיעור כדי לפתוח אותו.</div>
+    </div>
+    <div id="lessonsIndexBody" style="text-align:center;color:var(--muted);padding:30px;"><span class="loading-spinner"></span> טוען...</div>
+  `;
   try {
     const data = await callAPI('getGroupLessons', { group_id: groupData.group_id });
     allLessons = data.lessons || [];
-    renderLessons(allLessons);
+    renderLessonsIndex(allLessons);
   } catch(e) {
-    body.innerHTML = '<div style="color:var(--error);padding:20px;">שגיאה: ' + e.message + '</div>';
+    document.getElementById('lessonsIndexBody').innerHTML = '<div style="color:var(--error);padding:20px;">שגיאה: ' + e.message + '</div>';
   }
+}
+
+function renderLessonsIndex(lessons) {
+  const body = document.getElementById('lessonsIndexBody');
+  if (!lessons.length) {
+    body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;">המורה עוד לא הוסיף שיעורים. תבדקו שוב בקרוב.</div>';
+    return;
+  }
+  body.innerHTML = lessons.map(l => {
+    const numBadge = l.lesson_num ? `<span class="lesson-num-badge">יחידה ${l.lesson_num}</span>` : '';
+    return `<div class="lesson-card" style="cursor:pointer;" onclick="openLessonInline('${l.unit_id}')">
+      <div class="lesson-card-header">${numBadge}<span class="lesson-name">${escapeHtml(l.unit_name)}</span></div>
+      ${l.summary ? `<div class="lesson-summary">${escapeHtml(l.summary)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+/** פותח שיעור בודד בתוך תוכן העמוד, ובסופו קישור לסעיף/ים בתוצר שהוא מזין. */
+function openLessonInline(unitId) {
+  const l = allLessons.find(x => x.unit_id === unitId);
+  if (!l) return;
+  const glossary = getGlossaryForLesson(l);
+
+  const sectionNums = [...new Set((l.blocks || [])
+    .filter(b => b.answer_scope === 'project' && b.project_section)
+    .map(b => parseInt(b.project_section)))];
+  const sectionLinksHTML = sectionNums.length ? `
+    <div style="margin-top:24px;padding-top:16px;border-top:1px dashed rgba(27,42,61,0.15);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:12px;color:var(--muted);">מזין לסעיף:</span>
+      ${sectionNums.map(num => {
+        const sec = SECTIONS[num - 1];
+        return sec ? `<span class="lesson-section-link" onclick="jumpToSectionFromLesson(${num})">${sec.icon || ''} ${sec.name}</span>` : '';
+      }).join('')}
+    </div>` : '';
+  const presentBtn = (l.blocks && l.blocks.length)
+    ? `<span class="lesson-section-link" onclick="openLessonPresentation('${l.unit_id}')" style="color:var(--purple-light);border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.1);">🎬 הצג כמצגת</span>`
+    : '';
+
+  document.getElementById('sectionContent').innerHTML = `
+    <div class="section-header">
+      <button class="btn-nav btn-prev" onclick="showLessonsIndex()" style="margin-bottom:16px;">→ לרשימת השיעורים</button>
+      <div class="section-title">${l.lesson_num ? 'יחידה ' + escapeHtml(String(l.lesson_num)) + ' — ' : ''}${escapeHtml(l.unit_name)}</div>
+    </div>
+    ${renderLessonBlocks(l)}
+    <div style="margin-top:16px;">${presentBtn}</div>
+    ${sectionLinksHTML}
+  `;
+
+  (l.blocks || []).forEach(b => {
+    if (b.block_type === 'game') {
+      if (!gameStates[b.block_id]) gameStates[b.block_id] = b.game_type === 'memory' ? initMemoryState(b) : initFlashState(b);
+      paintGame(b.block_id, b.game_type);
+    }
+  });
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function escapeHtml(str) {
@@ -997,38 +1025,6 @@ function glossarize(text, pairs) {
     used.add(pair.term);
     return `<span class="gloss-wrap">${match}<span class="gloss-icon" tabindex="0">ⓘ<span class="gloss-tip">${escapeHtml(pair.definition || '')}</span></span></span>`;
   });
-}
-
-function renderLessons(lessons) {
-  const body = document.getElementById('lessonsBody');
-  if (!lessons.length) {
-    body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;">המורה עוד לא הוסיף שיעורים. תבדקו שוב בקרוב.</div>';
-    return;
-  }
-  body.innerHTML = lessons.map(l => {
-    const numBadge = l.lesson_num ? `<span class="lesson-num-badge">יחידה ${l.lesson_num}</span>` : '';
-    const sectionNum = parseInt(l.section_linked);
-    const sec = SECTIONS[sectionNum - 1];
-    const sectionLink = sec
-      ? `<span class="lesson-section-link" onclick="jumpToSectionFromLesson(${sectionNum})">${sec.icon||''} עבור לסעיף ${sectionNum} — ${sec.name||''}</span>`
-      : '';
-    const presentBtn = (l.blocks && l.blocks.length)
-      ? `<span class="lesson-section-link" onclick="openLessonPresentation('${l.unit_id}')" style="color:var(--purple-light);border-color:rgba(139,92,246,0.3);background:rgba(139,92,246,0.1);">🎬 הצג כמצגת</span>`
-      : '';
-    return `<div class="lesson-card">
-      <div class="lesson-card-header">${numBadge}<span class="lesson-name">${escapeHtml(l.unit_name)}</span></div>
-      ${renderLessonBlocks(l)}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">${sectionLink}${presentBtn}</div>
-    </div>`;
-  }).join('');
-
-  // מציירים משחקים אחרי שהם כבר בתוך ה-DOM (הם צריכים אלמנט קיים כדי לצייר לתוכו)
-  lessons.forEach(l => (l.blocks || []).forEach(b => {
-    if (b.block_type === 'game') {
-      if (!gameStates[b.block_id]) gameStates[b.block_id] = b.game_type === 'memory' ? initMemoryState(b) : initFlashState(b);
-      paintGame(b.block_id, b.game_type);
-    }
-  }));
 }
 
 /** בונה HTML לכל הבלוקים של יחידה — נופל חזרה לתצוגה הישנה אם ליחידה אין בלוקים כלל. */
@@ -1406,7 +1402,6 @@ function saveQASection(unitId, blockId) {
 }
 
 function jumpToSectionFromLesson(sectionNum) {
-  closeLessons();
   navigateTo(sectionNum);
 }
 
