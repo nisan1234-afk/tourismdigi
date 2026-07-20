@@ -595,15 +595,38 @@
       </div>
 
       <div id="fieldsQuiz" class="block-form-section">
+        <div class="form-group">
+          <label>סוג השאלה</label>
+          <select id="blockQuizMode" onchange="renderQuizModeFields()">
+            <option value="select">בחירה מרובה (סמנו את הנכונות)</option>
+            <option value="classify">מיון לקטגוריות</option>
+          </select>
+        </div>
         <div class="form-group"><label>נוסח השאלה (תרחיש)</label><textarea id="blockQuizPrompt" rows="3"></textarea></div>
-        <div class="form-group">
-          <label>אפשרויות בחירה — שורה לכל אפשרות</label>
-          <textarea id="blockQuizOptions" rows="5" placeholder="אפשרות ראשונה&#10;אפשרות שנייה"></textarea>
+
+        <div id="quizModeSelect">
+          <div class="form-group">
+            <label>אפשרויות בחירה — שורה לכל אפשרות</label>
+            <textarea id="blockQuizOptions" rows="5" placeholder="אפשרות ראשונה&#10;אפשרות שנייה"></textarea>
+          </div>
+          <div class="form-group">
+            <label>מספרי האפשרויות הנכונות (מופרד בפסיקים, החל מ-1)</label>
+            <input type="text" id="blockQuizCorrect" placeholder="לדוגמה: 1,3,4" />
+          </div>
         </div>
-        <div class="form-group">
-          <label>מספרי האפשרויות הנכונות (מופרד בפסיקים, החל מ-1)</label>
-          <input type="text" id="blockQuizCorrect" placeholder="לדוגמה: 1,3,4" />
+
+        <div id="quizModeClassify" style="display:none;">
+          <div class="form-group">
+            <label>קטגוריות — שורה לכל קטגוריה</label>
+            <textarea id="blockQuizCategories" rows="4" placeholder="קטגוריה ראשונה&#10;קטגוריה שנייה"></textarea>
+          </div>
+          <div class="form-group">
+            <label>פריטים למיון (פריט | שם הקטגוריה הנכונה) — שורה לכל פריט</label>
+            <textarea id="blockQuizItems" rows="6" placeholder="חרמון | טבעית&#10;מוזיאון | מעשה ידי אדם"></textarea>
+            <div class="form-hint3">שם הקטגוריה חייב להיות זהה בדיוק לאחת השורות בשדה הקטגוריות למעלה.</div>
+          </div>
         </div>
+
         <div class="form-group"><label>משוב בתשובה נכונה</label><input type="text" id="blockQuizFeedbackCorrect" placeholder="נכון!" /></div>
         <div class="form-group"><label>משוב בתשובה שגויה</label><input type="text" id="blockQuizFeedbackIncorrect" placeholder="כמעט. נסו שוב." /></div>
         <div class="form-hint3">בדיקה מיידית לתלמיד — לא נשמרת ולא מנוקדת, רק לחיזוק ההבנה.</div>
@@ -1147,11 +1170,19 @@ function openBlockForm(blockId) {
   populateTargetFieldOptions(block ? block.target_field : '', 'blockTargetField');
 
   const quizData = block && block.block_type === 'quiz' ? (block.game_data || {}) : {};
+  document.getElementById('blockQuizMode').value = quizData.mode === 'classify' ? 'classify' : 'select';
   document.getElementById('blockQuizPrompt').value = block && block.block_type === 'quiz' ? (block.question_prompt || '') : '';
   document.getElementById('blockQuizOptions').value = (quizData.options || []).join('\n');
   document.getElementById('blockQuizCorrect').value = (quizData.correct || []).map(i => i + 1).join(',');
+  document.getElementById('blockQuizCategories').value = (quizData.categories || []).join('\n');
+  document.getElementById('blockQuizItems').value = (quizData.items || []).map((item, i) => {
+    const catIdx = (quizData.correctMap || [])[i];
+    const catName = catIdx !== undefined && quizData.categories ? (quizData.categories[catIdx] || '') : '';
+    return item + ' | ' + catName;
+  }).join('\n');
   document.getElementById('blockQuizFeedbackCorrect').value = quizData.feedbackCorrect || '';
   document.getElementById('blockQuizFeedbackIncorrect').value = quizData.feedbackIncorrect || '';
+  renderQuizModeFields();
 
   const sqData = block && block.block_type === 'question_structured' ? (block.game_data || {}) : {};
   document.getElementById('blockSQPrompt').value = block && block.block_type === 'question_structured' ? (block.question_prompt || '') : '';
@@ -1180,6 +1211,13 @@ function renderBlockFormFields() {
   document.getElementById('fieldsQuestion').classList.toggle('show', type === 'question');
   document.getElementById('fieldsQuiz').classList.toggle('show', type === 'quiz');
   document.getElementById('fieldsQuestionStructured').classList.toggle('show', type === 'question_structured');
+  if (type === 'quiz') renderQuizModeFields();
+}
+
+function renderQuizModeFields() {
+  const mode = document.getElementById('blockQuizMode').value;
+  document.getElementById('quizModeSelect').style.display = mode === 'select' ? 'block' : 'none';
+  document.getElementById('quizModeClassify').style.display = mode === 'classify' ? 'block' : 'none';
 }
 
 function parseGamePairs(text) {
@@ -1226,14 +1264,33 @@ function buildBlockPayload(type) {
     };
   }
   if (type === 'quiz') {
+    const mode = document.getElementById('blockQuizMode').value;
+    const feedbackCorrect = document.getElementById('blockQuizFeedbackCorrect').value.trim();
+    const feedbackIncorrect = document.getElementById('blockQuizFeedbackIncorrect').value.trim();
+
+    if (mode === 'classify') {
+      const categories = parseLines(document.getElementById('blockQuizCategories').value);
+      const rows = parseGamePairs(document.getElementById('blockQuizItems').value); // {term: item, definition: category name}
+      return {
+        title,
+        question_prompt: document.getElementById('blockQuizPrompt').value.trim(),
+        game_data: {
+          mode: 'classify',
+          categories,
+          items: rows.map(r => r.term),
+          correctMap: rows.map(r => categories.indexOf(r.definition)),
+          feedbackCorrect, feedbackIncorrect
+        }
+      };
+    }
+
     return {
       title,
       question_prompt: document.getElementById('blockQuizPrompt').value.trim(),
       game_data: {
         options: parseLines(document.getElementById('blockQuizOptions').value),
         correct: parseIndices(document.getElementById('blockQuizCorrect').value),
-        feedbackCorrect: document.getElementById('blockQuizFeedbackCorrect').value.trim(),
-        feedbackIncorrect: document.getElementById('blockQuizFeedbackIncorrect').value.trim()
+        feedbackCorrect, feedbackIncorrect
       }
     };
   }
@@ -1437,11 +1494,14 @@ function renderPresentSlide() {
     `;
   } else if (block.block_type === 'quiz') {
     const q = block.game_data || {};
+    const answerHtml = q.mode === 'classify'
+      ? (q.items || []).map((item, i) => `<div>${escapeHtml(item)} ← ${escapeHtml((q.categories||[])[(q.correctMap||[])[i]] || '')}</div>`).join('')
+      : (q.options || []).map((o,i) => (q.correct||[]).includes(i) ? `<div>✅ ${escapeHtml(o)}</div>` : `<div>◻️ ${escapeHtml(o)}</div>`).join('');
     stage.innerHTML = `
       <div class="present-question-tag">✅ בדיקת הבנה קצרה</div>
       <div class="present-slide-title">${escapeHtml(block.title || '')}</div>
       <div class="present-slide-body">${glossarize(block.question_prompt, glossary)}</div>
-      <div class="present-slide-body" style="font-size:16px;margin-top:12px;">${(q.options || []).map((o,i) => (q.correct||[]).includes(i) ? `<div>✅ ${escapeHtml(o)}</div>` : `<div>◻️ ${escapeHtml(o)}</div>`).join('')}</div>
+      <div class="present-slide-body" style="font-size:16px;margin-top:12px;">${answerHtml}</div>
     `;
   } else if (block.block_type === 'game') {
     stage.innerHTML = `

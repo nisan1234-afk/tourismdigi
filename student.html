@@ -1074,6 +1074,29 @@ const quizConfig = {};
 function renderQuizBlock(block, glossary) {
   const q = block.game_data || {};
   quizConfig[block.block_id] = q;
+
+  if (q.mode === 'classify') {
+    const catOptions = (q.categories || []).map((c, i) => `<option value="${i}">${escapeHtml(c)}</option>`).join('');
+    const rows = (q.items || []).map((item, i) => `
+      <div class="field-group" style="display:flex;align-items:center;gap:10px;">
+        <span style="flex:1;">${escapeHtml(item)}</span>
+        <select class="field-input quiz-classify" data-block="${block.block_id}" data-idx="${i}" style="width:auto;min-width:160px;">
+          <option value="">בחרו קטגוריה...</option>
+          ${catOptions}
+        </select>
+      </div>`).join('');
+    return `
+      <div class="lesson-block lesson-block-question">
+        <div class="block-title">✅ ${escapeHtml(block.title || 'מיינו לקטגוריות')}</div>
+        <div class="block-question-prompt">${glossarize(block.question_prompt, glossary)}</div>
+        ${rows}
+        <div class="qa-row">
+          <button class="btn-nav btn-next" onclick="checkQuizAnswer('${block.block_id}')">בדוק תשובה</button>
+        </div>
+        <div class="qa-feedback" id="quiz_feedback_${block.block_id}"></div>
+      </div>`;
+  }
+
   const options = (q.options || []).map((opt, i) => `
     <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;">
       <input type="checkbox" class="quiz-opt" data-block="${block.block_id}" data-idx="${i}" />
@@ -1093,11 +1116,22 @@ function renderQuizBlock(block, glossary) {
 
 function checkQuizAnswer(blockId) {
   const q = quizConfig[blockId] || {};
-  const correct = (q.correct || []).slice().sort();
-  const checked = [...document.querySelectorAll('.quiz-opt[data-block="' + blockId + '"]:checked')]
-    .map(el => parseInt(el.dataset.idx, 10)).sort();
-  const isMatch = correct.length === checked.length && correct.every((v, i) => v === checked[i]);
   const feedbackEl = document.getElementById('quiz_feedback_' + blockId);
+  let isMatch;
+
+  if (q.mode === 'classify') {
+    const selects = [...document.querySelectorAll('.quiz-classify[data-block="' + blockId + '"]')]
+      .sort((a, b) => parseInt(a.dataset.idx, 10) - parseInt(b.dataset.idx, 10));
+    const chosen = selects.map(el => el.value === '' ? -1 : parseInt(el.value, 10));
+    const correctMap = q.correctMap || [];
+    isMatch = chosen.length === correctMap.length && chosen.every((v, i) => v === correctMap[i]);
+  } else {
+    const correct = (q.correct || []).slice().sort();
+    const checked = [...document.querySelectorAll('.quiz-opt[data-block="' + blockId + '"]:checked')]
+      .map(el => parseInt(el.dataset.idx, 10)).sort();
+    isMatch = correct.length === checked.length && correct.every((v, i) => v === checked[i]);
+  }
+
   if (feedbackEl) {
     feedbackEl.textContent = isMatch ? (q.feedbackCorrect || '✓ נכון!') : (q.feedbackIncorrect || 'כמעט. נסו שוב.');
     feedbackEl.style.color = isMatch ? 'var(--success)' : 'var(--warning)';
