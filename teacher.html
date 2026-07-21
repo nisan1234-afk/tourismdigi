@@ -349,9 +349,9 @@
 
   <div class="tabs-row">
     <button class="tab-btn" onclick="switchTab('groups', this)">קבוצות</button>
+    <button class="tab-btn" onclick="switchTab('classes', this)">כיתות</button>
     <button class="tab-btn active" onclick="switchTab('units', this)">יחידות לימוד</button>
     <button class="tab-btn" onclick="switchTab('findings', this)">ממצאים לתוצר <span id="findingsPendingBadge"></span></button>
-    <button class="tab-btn" onclick="switchTab('addgroup', this)">+ הוסף קבוצה</button>
   </div>
 
   <!-- קבוצות -->
@@ -367,6 +367,7 @@
             <option value="stuck">תקועים</option>
             <option value="done">סיימו</option>
           </select>
+          <button class="btn-sm btn-primary" onclick="openAddGroupModal()">+ הוסף קבוצה</button>
         </div>
       </div>
       <div class="table-wrap">
@@ -417,19 +418,16 @@
     </div>
   </div>
 
-  <!-- הוספת קבוצה -->
-  <div class="screen" id="tab-addgroup">
-    <div class="card" style="max-width:500px;">
-      <div class="card-title" style="margin-bottom:20px;">הוספת קבוצה חדשה</div>
-      <div class="form-group"><label>שם הקבוצה</label><input type="text" id="groupName" placeholder="לדוגמה: דנה ויוסי, או הכותל המערבי" /></div>
-      <div class="form-group">
-        <label>מיילים של חברי הקבוצה</label>
-        <textarea id="groupMembers" placeholder="student1@gmail.com, student2@gmail.com"></textarea>
-        <div class="form-hint">אפשר תלמיד יחיד, זוג, או קבוצה גדולה יותר — מייל אחד או יותר, מופרדים בפסיק.</div>
+  <!-- כיתות -->
+  <div class="screen" id="tab-classes">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">כיתות</div>
+        <button class="btn-sm btn-primary" onclick="openAddClassModal()">+ כיתה חדשה</button>
       </div>
-      <div class="form-group"><label>כיתה</label><input type="text" id="groupClass" placeholder="י1" /></div>
-      <button class="btn-sm btn-primary" style="padding:10px 20px;" onclick="addGroup()">צור קבוצה</button>
-      <div id="addGroupResult" style="margin-top:12px;font-size:13px;"></div>
+      <div id="classesBody">
+        <div class="empty-state">טוען...</div>
+      </div>
     </div>
   </div>
 
@@ -442,6 +440,43 @@
     <div id="groupModalContent"></div>
     <div class="modal-footer">
       <button class="btn-modal-cancel" onclick="hideModal('groupModal')">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- מודל קבוצה חדשה -->
+<div class="modal-overlay" id="addGroupModal">
+  <div class="modal">
+    <div class="modal-title">קבוצה חדשה</div>
+    <div class="form-group"><label>שם הקבוצה</label><input type="text" id="groupName" placeholder="לדוגמה: דנה ויוסי, או הכותל המערבי" /></div>
+    <div class="form-group">
+      <label>מיילים של חברי הקבוצה</label>
+      <textarea id="groupMembers" placeholder="student1@gmail.com, student2@gmail.com"></textarea>
+      <div class="form-hint">אפשר תלמיד יחיד, זוג, או קבוצה גדולה יותר — מייל אחד או יותר, מופרדים בפסיק.</div>
+    </div>
+    <div class="form-group">
+      <label>כיתה</label>
+      <select id="groupClass"><option value="">ללא כיתה</option></select>
+      <div class="form-hint">אם הכיתה שלכם לא ברשימה, אפשר להוסיף אותה בטאב "כיתות".</div>
+    </div>
+    <div id="addGroupResult" style="margin-bottom:8px;font-size:13px;"></div>
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="hideModal('addGroupModal')">ביטול</button>
+      <button class="btn-modal-confirm" onclick="addGroup()">צור קבוצה</button>
+    </div>
+  </div>
+</div>
+
+<!-- מודל כיתה חדשה / עריכה -->
+<div class="modal-overlay" id="addClassModal">
+  <div class="modal">
+    <input type="hidden" id="editClassId" />
+    <div class="modal-title" id="classModalTitle">כיתה חדשה</div>
+    <div class="form-group"><label>שם הכיתה</label><input type="text" id="className" placeholder="י1" /></div>
+    <div id="addClassResult" style="margin-bottom:8px;font-size:13px;"></div>
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="hideModal('addClassModal')">ביטול</button>
+      <button class="btn-modal-confirm" onclick="saveClass()">שמור</button>
     </div>
   </div>
 </div>
@@ -749,6 +784,7 @@ const FIELDS_BY_SECTION = [
 let currentUser = null;
 let allGroups   = [];
 let allUnits    = [];
+let allClasses  = [];
 let currentGroupDetail = null;
 let currentGroupId     = null;
 
@@ -772,9 +808,11 @@ async function loadData() {
     const data = await callAPI('getTeacherDashboard');
     allGroups  = data.groups || [];
     allUnits   = data.units || [];
+    allClasses = data.classes || [];
     renderStats();
     renderGroups(allGroups);
     renderUnits();
+    renderClasses();
   } catch(e) {
     document.getElementById('groupsBody').innerHTML = '<tr><td colspan="8" class="empty-state">שגיאה: ' + e.message + '</td></tr>';
   }
@@ -863,9 +901,31 @@ function renderStats() {
 
 function renderGroups(groups) {
   const tbody = document.getElementById('groupsBody');
-  if (!groups.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty-state">אין קבוצות — הוסף מהטאב "הוסף קבוצה"</td></tr>'; return; }
+  if (!groups.length) { tbody.innerHTML = '<tr><td colspan="8" class="empty-state">אין קבוצות — לחצו "+ הוסף קבוצה"</td></tr>'; return; }
 
-  tbody.innerHTML = groups.map(g => {
+  // מקבצים לפי כיתה — בית ספר ← כיתה ← קבוצה ← תלמיד
+  const byClass = {};
+  groups.forEach(g => {
+    const key = g.class_id || '';
+    if (!byClass[key]) byClass[key] = [];
+    byClass[key].push(g);
+  });
+  const classOrder = Object.keys(byClass).sort((a, b) => {
+    const nameA = a ? (allClasses.find(c => c.class_id === a)?.class_name || a) : 'ללא כיתה';
+    const nameB = b ? (allClasses.find(c => c.class_id === b)?.class_name || b) : 'ללא כיתה';
+    if (!a) return 1; // "ללא כיתה" תמיד אחרון
+    if (!b) return -1;
+    return nameA.localeCompare(nameB, 'he');
+  });
+
+  tbody.innerHTML = classOrder.map(classKey => {
+    const className = classKey ? (allClasses.find(c => c.class_id === classKey)?.class_name || classKey) : 'ללא כיתה';
+    const header = `<tr><td colspan="8" style="background:var(--dark2);font-family:var(--font-display);font-weight:700;font-size:13px;padding:10px 14px;">🏫 כיתה ${escapeHtml(className)}</td></tr>`;
+    return header + byClass[classKey].map(g => renderGroupRow(g)).join('');
+  }).join('');
+}
+
+function renderGroupRow(g) {
     const prog = `<div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:${g.percent}%"></div></div><div class="prog-pct">${g.percent}%</div></div>`;
 
     const cur = parseInt(g.current_section) || 1;
@@ -900,9 +960,11 @@ function renderGroups(groups) {
       <td>${prog}</td>
       <td>${contrib}</td>
       <td><span class="${laCls}">${days > 7 ? '⚠️ ' : ''}${laText}</span></td>
-      <td><button class="btn-sm btn-back" onclick="openGroupModal('${g.group_id}')">פרטים</button></td>
+      <td style="white-space:nowrap;">
+        <button class="btn-sm btn-back" onclick="openGroupModal('${g.group_id}')">פרטים</button>
+        <button class="btn-sm btn-primary" onclick="openGroupProduct('${g.group_id}')">📄 תוצר</button>
+      </td>
     </tr>`;
-  }).join('');
 }
 
 function filterGroups(q) {
@@ -917,6 +979,13 @@ function filterGroups(q) {
   if (status === 'stuck')  filtered = filtered.filter(g => { const d = g.last_active ? (Date.now()-new Date(g.last_active).getTime())/86400000 : 999; return d > 7; });
   if (status === 'active') filtered = filtered.filter(g => { const d = g.last_active ? (Date.now()-new Date(g.last_active).getTime())/86400000 : 999; return d <= 7 && g.percent < 100; });
   renderGroups(filtered);
+}
+
+/** פותח את פרטי הקבוצה ומגלגל ישר לתוצר שלה (עריכה/צפייה בסעיפים), במקום להתחיל מלמעלה. */
+async function openGroupProduct(group_id) {
+  await openGroupModal(group_id);
+  const target = document.querySelector('.group-subsection');
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function openGroupModal(group_id) {
@@ -1480,21 +1549,87 @@ async function moveBlock(blockId, dir) {
   } catch(e) { alert('שגיאה: ' + e.message); }
 }
 
+function openAddGroupModal() {
+  const sel = document.getElementById('groupClass');
+  sel.innerHTML = '<option value="">ללא כיתה</option>' +
+    allClasses.map(c => `<option value="${c.class_id}">${escapeHtml(c.class_name)}</option>`).join('');
+  document.getElementById('groupName').value = '';
+  document.getElementById('groupMembers').value = '';
+  document.getElementById('addGroupResult').textContent = '';
+  showModal('addGroupModal');
+}
+
 async function addGroup() {
   const name    = document.getElementById('groupName').value.trim();
   const members = document.getElementById('groupMembers').value.trim();
-  const cls     = document.getElementById('groupClass').value.trim();
+  const cls     = document.getElementById('groupClass').value;
   const resEl   = document.getElementById('addGroupResult');
   if (!members) { resEl.textContent = 'נא להכניס לפחות מייל אחד'; resEl.style.color = 'var(--error)'; return; }
   resEl.textContent = 'יוצר קבוצה...'; resEl.style.color = 'var(--muted)';
   try {
     await callAPI('addGroup', { group_name: name, members, class_id: cls });
-    resEl.textContent = '✅ הקבוצה נוצרה בהצלחה!'; resEl.style.color = 'var(--success)';
-    document.getElementById('groupName').value = '';
-    document.getElementById('groupMembers').value = '';
-    document.getElementById('groupClass').value = '';
+    hideModal('addGroupModal');
     await loadData();
   } catch(e) { resEl.textContent = 'שגיאה: ' + e.message; resEl.style.color = 'var(--error)'; }
+}
+
+function openAddClassModal() {
+  document.getElementById('editClassId').value = '';
+  document.getElementById('classModalTitle').textContent = 'כיתה חדשה';
+  document.getElementById('className').value = '';
+  document.getElementById('addClassResult').textContent = '';
+  showModal('addClassModal');
+}
+
+function openEditClassModal(classId) {
+  const c = allClasses.find(x => x.class_id === classId);
+  if (!c) return;
+  document.getElementById('editClassId').value = classId;
+  document.getElementById('classModalTitle').textContent = 'עריכת כיתה';
+  document.getElementById('className').value = c.class_name;
+  document.getElementById('addClassResult').textContent = '';
+  showModal('addClassModal');
+}
+
+async function saveClass() {
+  const classId = document.getElementById('editClassId').value;
+  const name    = document.getElementById('className').value.trim();
+  const resEl   = document.getElementById('addClassResult');
+  if (!name) { resEl.textContent = 'נא להזין שם כיתה'; resEl.style.color = 'var(--error)'; return; }
+  try {
+    if (classId) await callAPI('updateClass', { class_id: classId, class_name: name });
+    else await callAPI('addClass', { class_name: name });
+    hideModal('addClassModal');
+    await loadData();
+  } catch(e) { resEl.textContent = 'שגיאה: ' + e.message; resEl.style.color = 'var(--error)'; }
+}
+
+async function deleteClassClick(classId) {
+  if (!confirm('למחוק את הכיתה? הקבוצות ששייכות אליה יישארו, רק יוצאו מהכיתה.')) return;
+  try {
+    await callAPI('deleteClass', { class_id: classId });
+    await loadData();
+  } catch(e) { alert('שגיאה: ' + e.message); }
+}
+
+function renderClasses() {
+  const body = document.getElementById('classesBody');
+  if (!allClasses.length) {
+    body.innerHTML = '<div class="empty-state">עדיין אין כיתות — לחצו "+ כיתה חדשה" כדי להתחיל.</div>';
+    return;
+  }
+  body.innerHTML = `<div class="table-wrap"><table><thead><tr><th>כיתה</th><th>קבוצות</th><th></th></tr></thead><tbody>` +
+    allClasses.map(c => {
+      const count = allGroups.filter(g => g.class_id === c.class_id).length;
+      return `<tr>
+        <td><strong>${escapeHtml(c.class_name)}</strong></td>
+        <td>${count}</td>
+        <td>
+          <button class="btn-sm btn-back" onclick="openEditClassModal('${c.class_id}')">✏️ ערוך</button>
+          <button class="btn-sm btn-danger" onclick="deleteClassClick('${c.class_id}')">🗑️ מחק</button>
+        </td>
+      </tr>`;
+    }).join('') + `</tbody></table></div>`;
 }
 
 function switchTab(tab, btn) {
