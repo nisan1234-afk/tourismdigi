@@ -713,11 +713,18 @@
           <textarea id="blockSQCategories" rows="5" placeholder="קטגוריה ראשונה&#10;קטגוריה שנייה"></textarea>
         </div>
         <div class="form-group"><label>משפט השלמה</label><input type="text" id="blockSQFillPrompt" placeholder="האתר שבחרנו בולט בתחום __________." /></div>
-        <div class="form-group"><label>תווית שדה ההוכחה</label><input type="text" id="blockSQEvidenceLabel" placeholder="קישור / צילום מסך / תמונה / שם האפליקציה" /></div>
+        <div class="form-group"><label>תווית שדה הראיה (תיאור מילולי)</label><input type="text" id="blockSQEvidenceLabel" placeholder="תארו את הראיה שמצאתם" /></div>
+        <div class="form-group"><label>תווית שדה קישור/צילום מסך (נפרד מהראיה)</label><input type="text" id="blockSQEvidenceLinkLabel" placeholder="קישור או צילום מסך" /></div>
         <div class="form-group">
           <label>שלבי הסבר במילים שלהם — שורה לכל שלב</label>
-          <textarea id="blockSQExplainParts" rows="4" placeholder="מצאנו שהאתר משתמש ב-&#10;הדבר עוזר לתיירים בכך ש-&#10;לדעתנו השימוש הזה טוב / חלקי / חלש, משום ש-"></textarea>
+          <textarea id="blockSQExplainParts" rows="4" placeholder="מצאנו שהאתר משתמש ב-&#10;הדבר עוזר לתיירים בכך ש-"></textarea>
         </div>
+        <div class="form-group"><label>תווית שאלת ההערכה (אופציונלי)</label><input type="text" id="blockSQRatingLabel" placeholder="היישום באתר הוא:" /></div>
+        <div class="form-group">
+          <label>אפשרויות הערכה — שורה לכל אפשרות</label>
+          <textarea id="blockSQRatingOptions" rows="3" placeholder="טוב&#10;חלקי&#10;חסר"></textarea>
+        </div>
+        <div class="form-group"><label>תווית נימוק ההערכה</label><input type="text" id="blockSQRatingReasonLabel" placeholder="מפני ש-" /></div>
         <div class="form-group">
           <label>צ'קליסט לפני שמירה — שורה לכל פריט</label>
           <textarea id="blockSQChecklist" rows="4" placeholder="נתנו דוגמה מהאתר שלנו.&#10;צירפנו הוכחה."></textarea>
@@ -1373,7 +1380,11 @@ function openBlockForm(blockId) {
   document.getElementById('blockSQCategories').value = (sqData.categories || []).join('\n');
   document.getElementById('blockSQFillPrompt').value = sqData.fillPrompt || '';
   document.getElementById('blockSQEvidenceLabel').value = sqData.evidenceLabel || '';
+  document.getElementById('blockSQEvidenceLinkLabel').value = sqData.evidenceLinkLabel || '';
   document.getElementById('blockSQExplainParts').value = (sqData.explainParts || []).join('\n');
+  document.getElementById('blockSQRatingLabel').value = sqData.ratingLabel || '';
+  document.getElementById('blockSQRatingOptions').value = (sqData.ratingOptions || []).join('\n');
+  document.getElementById('blockSQRatingReasonLabel').value = sqData.ratingReasonLabel || '';
   document.getElementById('blockSQChecklist').value = (sqData.checklist || []).join('\n');
   populateTargetFieldOptions(block ? block.target_field : '', 'blockSQTargetField');
 
@@ -1495,7 +1506,11 @@ function buildBlockPayload(type) {
         categories: parseLines(document.getElementById('blockSQCategories').value),
         fillPrompt: document.getElementById('blockSQFillPrompt').value.trim(),
         evidenceLabel: document.getElementById('blockSQEvidenceLabel').value.trim(),
+        evidenceLinkLabel: document.getElementById('blockSQEvidenceLinkLabel').value.trim(),
         explainParts: parseLines(document.getElementById('blockSQExplainParts').value),
+        ratingLabel: document.getElementById('blockSQRatingLabel').value.trim(),
+        ratingOptions: parseLines(document.getElementById('blockSQRatingOptions').value),
+        ratingReasonLabel: document.getElementById('blockSQRatingReasonLabel').value.trim(),
         checklist: parseLines(document.getElementById('blockSQChecklist').value)
       }
     };

@@ -1175,6 +1175,12 @@ function renderStructuredQuestionBlock(unitId, block, glossary) {
   const checklist = (sq.checklist || []).length
     ? `<div class="field-hint">לפני שמירה, ודאו:<br>${sq.checklist.map(c => '☐ ' + escapeHtml(c)).join('<br>')}</div>` : '';
 
+  const ratingOptions = (sq.ratingOptions || []).map((opt, i) => `
+    <label style="display:inline-flex;align-items:center;gap:6px;margin-inline-end:14px;cursor:pointer;">
+      <input type="radio" name="sq_rating_${block.block_id}" class="sq-rating" value="${escapeHtml(opt)}" data-block="${block.block_id}" />
+      <span>${escapeHtml(opt)}</span>
+    </label>`).join('');
+
   return `
     <div class="lesson-block lesson-block-question">
       <div class="block-title">📝 ${escapeHtml(block.title || 'שאלה אישית')}${scorePill}</div>
@@ -1182,7 +1188,10 @@ function renderStructuredQuestionBlock(unitId, block, glossary) {
       ${categories ? `<div class="field-group"><div class="field-label">סמנו קטגוריות רלוונטיות:</div>${categories}</div>` : ''}
       ${sq.fillPrompt ? `<div class="field-group"><div class="field-label">${escapeHtml(sq.fillPrompt)}</div><input type="text" class="field-input" id="sq_fill_${block.block_id}" /></div>` : ''}
       ${sq.evidenceLabel ? `<div class="field-group"><div class="field-label">${escapeHtml(sq.evidenceLabel)}</div><input type="text" class="field-input" id="sq_evidence_${block.block_id}" /></div>` : ''}
+      ${sq.evidenceLinkLabel ? `<div class="field-group"><div class="field-label">${escapeHtml(sq.evidenceLinkLabel)}</div><input type="text" class="field-input" id="sq_evidence_link_${block.block_id}" /></div>` : ''}
       ${explainRows}
+      ${ratingOptions ? `<div class="field-group"><div class="field-label">${escapeHtml(sq.ratingLabel || 'הערכה:')}</div>${ratingOptions}</div>` : ''}
+      ${sq.ratingReasonLabel ? `<div class="field-group"><div class="field-label">${escapeHtml(sq.ratingReasonLabel)}</div><input type="text" class="field-input" id="sq_rating_reason_${block.block_id}" /></div>` : ''}
       ${checklist}
       ${block.saved_answer ? `<div class="field-hint">התשובה השמורה שלכם:<br>${escapeHtml(block.saved_answer).replace(/\n/g,'<br>')}</div>` : ''}
       <div class="qa-row">
@@ -1201,15 +1210,21 @@ function saveSQBlock(unitId, blockId) {
     .map(el => (sq.categories || [])[parseInt(el.dataset.idx, 10)]).filter(Boolean);
   const fillEl = document.getElementById('sq_fill_' + blockId);
   const evidenceEl = document.getElementById('sq_evidence_' + blockId);
+  const evidenceLinkEl = document.getElementById('sq_evidence_link_' + blockId);
+  const ratingEl = document.querySelector('.sq-rating[data-block="' + blockId + '"]:checked');
+  const ratingReasonEl = document.getElementById('sq_rating_reason_' + blockId);
 
   const lines = [];
   if (catBoxes.length) lines.push('קטגוריות שנבחרו: ' + catBoxes.join(', '));
   if (fillEl && fillEl.value.trim()) lines.push((sq.fillPrompt || 'השלמה:') + ' ' + fillEl.value.trim());
   if (evidenceEl && evidenceEl.value.trim()) lines.push((sq.evidenceLabel || 'הוכחה:') + ' ' + evidenceEl.value.trim());
+  if (evidenceLinkEl && evidenceLinkEl.value.trim()) lines.push((sq.evidenceLinkLabel || 'קישור/צילום מסך:') + ' ' + evidenceLinkEl.value.trim());
   (sq.explainParts || []).forEach((label, i) => {
     const el = document.getElementById('sq_explain_' + blockId + '_' + i);
     if (el && el.value.trim()) lines.push(label + ' ' + el.value.trim());
   });
+  if (ratingEl) lines.push((sq.ratingLabel || 'הערכה:') + ' ' + ratingEl.value);
+  if (ratingReasonEl && ratingReasonEl.value.trim()) lines.push((sq.ratingReasonLabel || 'נימוק:') + ' ' + ratingReasonEl.value.trim());
 
   const status = document.getElementById('qa_status_' + blockId);
   if (!lines.length) { if (status) { status.textContent = 'נא למלא לפחות שדה אחד'; status.style.color = 'var(--warning)'; } return; }
