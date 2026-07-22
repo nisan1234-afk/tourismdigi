@@ -503,6 +503,7 @@ let sectionContent = {};
 let saveTimer      = null;
 let hasChanges     = false;
 let allLessons     = [];
+let lastUnitId     = '';
 const gameStates   = {};
 let teacherEdits    = {};
 let sectionComments = {};
@@ -928,15 +929,12 @@ async function showLessonsIndex() {
   `;
   try {
     const data = await callAPI('getGroupLessons', { group_id: groupData.group_id });
-    allLessons = data.lessons || [];
+    allLessons  = data.lessons || [];
+    lastUnitId  = data.last_unit_id || '';
     renderLessonsIndex(allLessons);
   } catch(e) {
     document.getElementById('lessonsIndexBody').innerHTML = '<div style="color:var(--error);padding:20px;">שגיאה: ' + e.message + '</div>';
   }
-}
-
-function lastUnitStorageKey() {
-  return 'tourismdigi_lastUnit_' + (groupData && groupData.group_id ? groupData.group_id : 'default');
 }
 
 function renderLessonsIndex(lessons) {
@@ -945,7 +943,6 @@ function renderLessonsIndex(lessons) {
     body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;">המורה עוד לא הוסיף שיעורים. תבדקו שוב בקרוב.</div>';
     return;
   }
-  const lastUnitId = localStorage.getItem(lastUnitStorageKey());
   const lastLesson = lastUnitId ? lessons.find(l => l.unit_id === lastUnitId) : null;
   const continueHTML = lastLesson ? `
     <div class="lesson-card lesson-card-continue" style="cursor:pointer;" onclick="openLessonInline('${lastLesson.unit_id}')">
@@ -965,7 +962,8 @@ function renderLessonsIndex(lessons) {
 function openLessonInline(unitId) {
   const l = allLessons.find(x => x.unit_id === unitId);
   if (!l) return;
-  localStorage.setItem(lastUnitStorageKey(), unitId);
+  lastUnitId = unitId;
+  callAPI('trackLessonView', { group_id: groupData.group_id, unit_id: unitId }).catch(() => {});
   const glossary = getGlossaryForLesson(l);
 
   const sectionNums = [...new Set((l.blocks || [])

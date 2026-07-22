@@ -998,31 +998,30 @@ async function openGroupProduct(group_id) {
   if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function lastGroupStorageKey() {
-  return 'tourismdigi_teacher_lastGroup_' + (currentUser && currentUser.email ? currentUser.email : 'default');
-}
-
+/** מוצא את היחידה שהוצגה לאחרונה במצגת (last_presented_at הכי עדכני), נשמר בגיליון — לא בדפדפן, כדי שיעבוד גם ממחשב אחר. */
 function renderContinueGroupBar() {
   const bar = document.getElementById('continueGroupBar');
   if (!bar) return;
-  const lastGroupId = localStorage.getItem(lastGroupStorageKey());
-  const group = lastGroupId ? allGroups.find(g => g.group_id === lastGroupId) : null;
-  bar.innerHTML = group ? `
-    <div class="card" style="cursor:pointer;border:1px solid rgba(30,144,255,0.35);background:rgba(30,144,255,0.06);margin-bottom:14px;" onclick="openGroupModal('${group.group_id}')">
+  const withTimestamp = allUnits
+    .map((u, idx) => ({ u, idx }))
+    .filter(x => x.u.last_presented_at);
+  if (!withTimestamp.length) { bar.innerHTML = ''; return; }
+  const last = withTimestamp.reduce((a, b) => new Date(a.u.last_presented_at) > new Date(b.u.last_presented_at) ? a : b);
+  bar.innerHTML = `
+    <div class="card" style="cursor:pointer;border:1px solid rgba(30,144,255,0.35);background:rgba(30,144,255,0.06);margin-bottom:14px;" onclick="openPresentation(${last.idx})">
       <div style="display:flex;align-items:center;gap:10px;">
         <span style="font-size:20px;">▶️</span>
         <div>
-          <div style="font-weight:700;">המשך מאיפה שעצרנו</div>
-          <div style="font-size:13px;color:var(--muted);">${escapeHtml(group.group_name || 'קבוצה')}</div>
+          <div style="font-weight:700;">המשך מאיפה שעצרתי</div>
+          <div style="font-size:13px;color:var(--muted);">${escapeHtml(last.u.unit_name || 'יחידה')}</div>
         </div>
       </div>
-    </div>` : '';
+    </div>`;
 }
 
 async function openGroupModal(group_id) {
   const group = allGroups.find(g => g.group_id === group_id);
   if (!group) return;
-  localStorage.setItem(lastGroupStorageKey(), group_id);
   document.getElementById('groupModalTitle').textContent = (group.group_name || 'קבוצה') + ' — פרטים';
   document.getElementById('groupModalContent').innerHTML = '<div class="empty-state"><span class="loading-spinner"></span></div>';
   showModal('groupModal');
@@ -1729,6 +1728,7 @@ function openPresentation(idx) {
   document.getElementById('presentOverlay').classList.add('show');
   document.addEventListener('keydown', presentKeyHandler);
   renderPresentSlide();
+  callAPI('trackUnitPresented', { unit_id: presentUnit.unit_id }).catch(() => {});
 }
 
 function closePresentation() {
