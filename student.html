@@ -185,6 +185,12 @@
       background: linear-gradient(180deg, var(--teal), var(--blue));
       border-radius: 16px 0 0 16px;
     }
+    .lesson-card-continue {
+      background: linear-gradient(160deg, rgba(30,144,255,0.16), rgba(30,144,255,0.05) 75%);
+      border: 1px solid rgba(30,144,255,0.35);
+    }
+    .lesson-card-continue::before { background: linear-gradient(180deg, var(--gold), #FF7A3D); }
+    .lesson-card-continue .lesson-name { color: var(--blue); }
     .lesson-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
     .lesson-num-badge { font-family: var(--font-display); font-size: 11px; font-weight: 700; color: var(--text); background: linear-gradient(135deg, var(--gold), #FF7A3D); border-radius: 20px; padding: 3px 11px; letter-spacing: 0.03em; }
     .lesson-name { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
@@ -929,13 +935,24 @@ async function showLessonsIndex() {
   }
 }
 
+function lastUnitStorageKey() {
+  return 'tourismdigi_lastUnit_' + (groupData && groupData.group_id ? groupData.group_id : 'default');
+}
+
 function renderLessonsIndex(lessons) {
   const body = document.getElementById('lessonsIndexBody');
   if (!lessons.length) {
     body.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px;">המורה עוד לא הוסיף שיעורים. תבדקו שוב בקרוב.</div>';
     return;
   }
-  body.innerHTML = lessons.map(l => {
+  const lastUnitId = localStorage.getItem(lastUnitStorageKey());
+  const lastLesson = lastUnitId ? lessons.find(l => l.unit_id === lastUnitId) : null;
+  const continueHTML = lastLesson ? `
+    <div class="lesson-card lesson-card-continue" style="cursor:pointer;" onclick="openLessonInline('${lastLesson.unit_id}')">
+      <div class="lesson-card-header">▶️ <span class="lesson-name">המשך מאיפה שעצרתם</span></div>
+      <div class="lesson-summary">${escapeHtml(lastLesson.unit_name)}</div>
+    </div>` : '';
+  body.innerHTML = continueHTML + lessons.map(l => {
     const numBadge = l.lesson_num ? `<span class="lesson-num-badge">יחידה ${l.lesson_num}</span>` : '';
     return `<div class="lesson-card" style="cursor:pointer;" onclick="openLessonInline('${l.unit_id}')">
       <div class="lesson-card-header">${numBadge}<span class="lesson-name">${escapeHtml(l.unit_name)}</span></div>
@@ -948,6 +965,7 @@ function renderLessonsIndex(lessons) {
 function openLessonInline(unitId) {
   const l = allLessons.find(x => x.unit_id === unitId);
   if (!l) return;
+  localStorage.setItem(lastUnitStorageKey(), unitId);
   const glossary = getGlossaryForLesson(l);
 
   const sectionNums = [...new Set((l.blocks || [])
