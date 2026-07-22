@@ -514,7 +514,14 @@ window.onload = async function() {
   currentUser = JSON.parse(stored);
 
   await loadGroupData();
-  showLessonsIndex(); // השיעורים הם התצוגה הראשונה שהתלמיד רואה, כמו אצל המורה
+
+  const jumpTo = sessionStorage.getItem('jumpToSection');
+  if (jumpTo) {
+    sessionStorage.removeItem('jumpToSection');
+    navigateTo(parseInt(jumpTo, 10));
+  } else {
+    showLessonsIndex(); // השיעורים הם התצוגה הראשונה שהתלמיד רואה, כמו אצל המורה
+  }
 };
 
 async function callAPI(action, params = {}) {
@@ -572,7 +579,7 @@ function renderSectionNav() {
     return `<div class="section-item ${cls} ${active}" onclick="navigateTo(${s.num})">
       <div class="section-icon">${s.icon}</div>
       <div class="section-info">
-        <div class="section-num-label">סעיף ${s.num}</div>
+        <div class="section-num-label">שיעור ${s.num}</div>
         <div class="section-name-label">${s.name}</div>
       </div>
       <div class="section-check">${check}</div>
@@ -611,7 +618,7 @@ function navigateTo(num) {
 
   const sectionComment = sectionComments['section_' + num];
   const commentHTML = sectionComment
-    ? `<div class="teacher-comment-box"><div class="teacher-comment-label">💬 הערת המורה לסעיף זה</div><div class="teacher-comment-text">${escapeHtml(sectionComment)}</div></div>`
+    ? `<div class="teacher-comment-box"><div class="teacher-comment-label">💬 הערת המורה לשיעור זה</div><div class="teacher-comment-text">${escapeHtml(sectionComment)}</div></div>`
     : '';
 
   const isLocked = false; // נעילת סעיפים כבויה לפי בקשת המורה — כל הסעיפים פתוחים תמיד
@@ -630,14 +637,14 @@ function navigateTo(num) {
 
   document.getElementById('sectionContent').innerHTML = `
     <div class="section-header">
-      <div class="section-number">סעיף ${num} מתוך 8</div>
+      <div class="section-number">שיעור ${num} מתוך 8</div>
       <div class="section-title">${sec.icon} ${sec.name}</div>
       <div class="section-desc">${sec.desc}</div>
     </div>
     ${siteHTML}
     ${commentHTML}
     ${lessonAnswersHTML}
-    ${isLocked ? '<div style="padding:20px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;color:var(--error);font-size:14px;">🔒 סעיף זה נעול עדיין — המורה יפתח אותו בזמן המתאים.</div>' : fieldsHTML}
+    ${isLocked ? '<div style="padding:20px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;color:var(--error);font-size:14px;">🔒 שיעור זה נעול עדיין — המורה יפתח אותו בזמן המתאים.</div>' : fieldsHTML}
     ${!isLocked ? `
     <div class="nav-btns">
       <button class="btn-nav btn-prev" onclick="navigateTo(${num-1})" ${num===1?'style="visibility:hidden"':''}>→ הקודם</button>
@@ -671,7 +678,7 @@ function renderLessonAnswersPanel(sectionNum) {
 
   return `
     <div class="lesson-answers-panel">
-      <div class="lap-title">📚 מהיחידות שלכם — תשובות שיכולות לעזור לסעיף הזה</div>
+      <div class="lap-title">📚 מהיחידות שלכם — תשובות שיכולות לעזור לשיעור הזה</div>
       ${items.map(item => `
         <div class="lap-item">
           <div class="lap-source">מיחידה: ${escapeHtml(item.unit_name)}</div>
@@ -971,7 +978,7 @@ function openLessonInline(unitId) {
     .map(b => parseInt(b.project_section)))];
   const sectionLinksHTML = sectionNums.length ? `
     <div style="margin-top:24px;padding-top:16px;border-top:1px dashed rgba(27,42,61,0.15);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span style="font-size:12px;color:var(--muted);">מזין לסעיף:</span>
+      <span style="font-size:12px;color:var(--muted);">מזין לשיעור:</span>
       ${sectionNums.map(num => {
         const sec = SECTIONS[num - 1];
         return sec ? `<span class="lesson-section-link" onclick="jumpToSectionFromLesson(${num})">${sec.icon || ''} ${sec.name}</span>` : '';
