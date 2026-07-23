@@ -11,6 +11,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="כיתה פלוס">
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800&family=Secular+One&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -81,6 +83,14 @@
     .partner-dot.online { background: var(--success); box-shadow: 0 0 6px var(--success); animation: pulse 2s infinite; }
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
     .partner-name { font-size: 12px; color: var(--muted); }
+
+    /* NOTIFICATIONS OPT-IN */
+    .notify-banner { padding: 10px 12px; background: rgba(30,144,255,0.08); border: 1px solid rgba(30,144,255,0.25); border-radius: 10px; margin-bottom: 8px; display: none; }
+    .notify-banner.show { display: block; }
+    .notify-banner-text { font-size: 12px; color: var(--text); margin-bottom: 8px; line-height: 1.5; }
+    .notify-banner-btns { display: flex; gap: 8px; }
+    .notify-btn-yes { flex: 1; padding: 7px 10px; border-radius: 8px; border: none; background: var(--blue); color: #fff; font-family: 'Heebo', sans-serif; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .notify-btn-no { padding: 7px 10px; border-radius: 8px; border: 1px solid rgba(27,42,61,0.15); background: transparent; color: var(--muted); font-family: 'Heebo', sans-serif; font-size: 12px; cursor: pointer; }
 
     /* SIDE BUTTONS (chatbot / files / backup) */
     .files-btn, .chatbot-btn { display: flex; align-items: center; gap: 10px; padding: 11px 13px; border-radius: 12px; font-family: 'Heebo', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; text-align: right; transition: all 0.2s; border: 1px solid; }
@@ -363,6 +373,14 @@
       <div class="partner-name" id="partnerLabel">חברי הקבוצה: טוען...</div>
     </div>
 
+    <div class="notify-banner" id="notifyBanner">
+      <div class="notify-banner-text">🔔 רוצים לקבל התראה כשהמורה בודק את העבודה שלכם?</div>
+      <div class="notify-banner-btns">
+        <button class="notify-btn-yes" onclick="enableNotifications()">כן, קבל התראות</button>
+        <button class="notify-btn-no" onclick="dismissNotifyBanner()">לא עכשיו</button>
+      </div>
+    </div>
+
     <a class="lessons-hero" onclick="showLessonsIndex()">
       <div class="lessons-hero-icon">📚</div>
       <div>
@@ -457,9 +475,71 @@
 </div>
 
 <script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBKFa8DtbZdZcn-nDclearM86QmnCe6SM0",
+  authDomain: "hyper-fucos.firebaseapp.com",
+  databaseURL: "https://hyper-fucos-default-rtdb.firebaseio.com",
+  projectId: "hyper-fucos",
+  storageBucket: "hyper-fucos.firebasestorage.app",
+  messagingSenderId: "126453149478",
+  appId: "1:126453149478:web:8f5643d5a622014e915be7"
+};
+const FCM_VAPID_KEY = "BHl6FUIYZzoGDSDq-NlEb1-ZQZu2Sts9LuI0xs4xPx-njztCekwneoXqcuZmnqdidY4gfhlyEhRqlKN6k0QM1ZI";
+
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function(){});
+  navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function() {
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+      firebase.messaging().onMessage(function(payload) {
+        const n = payload.notification || {};
+        showToast((n.title || 'התראה מהמורה') + ' — ' + (n.body || ''));
+      });
+    } catch (e) {}
+  }).catch(function(){});
 }
+
+function showToast(text) {
+  const toast = document.createElement('div');
+  toast.textContent = text;
+  toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1B2A3D;color:#fff;padding:12px 20px;border-radius:10px;font-family:"Heebo",sans-serif;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,0.25);z-index:9999;max-width:90vw;text-align:center;';
+  document.body.appendChild(toast);
+  setTimeout(function(){ toast.remove(); }, 6000);
+}
+
+function maybeShowNotifyBanner() {
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+  if (Notification.permission !== 'default') return;
+  if (localStorage.getItem('notifyBannerDismissed') === '1') return;
+  const el = document.getElementById('notifyBanner');
+  if (el) el.classList.add('show');
+}
+
+function dismissNotifyBanner() {
+  localStorage.setItem('notifyBannerDismissed', '1');
+  const el = document.getElementById('notifyBanner');
+  if (el) el.classList.remove('show');
+}
+
+async function enableNotifications() {
+  const banner = document.getElementById('notifyBanner');
+  try {
+    const permission = await Notification.requestPermission();
+    if (banner) banner.classList.remove('show');
+    if (permission !== 'granted') return;
+
+    if (!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
+    const registration = await navigator.serviceWorker.ready;
+    const token = await firebase.messaging().getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: registration });
+    if (token) {
+      await callAPI('saveFcmToken', { token });
+      localStorage.setItem('notifyBannerDismissed', '1');
+      showToast('✅ התראות הופעלו בהצלחה');
+    }
+  } catch (e) {
+    if (banner) banner.classList.remove('show');
+  }
+}
+
 const TICHER_URL  = 'https://nisan1234-afk.github.io/TICHER/';
 const API_URL     = 'https://script.google.com/macros/s/AKfycbwf3-MNZBBi64zXcNH7wfhBRoEBl9brtQ9QRI4Won5RmUIOrl_WBivN6uI5NAp6Mc0h/exec';
 // מפתח Gemini API נשמר בשרת (Apps Script Script Properties) — לא כאן, כדי שלא ייחשף לציבור ב-GitHub Pages
@@ -514,6 +594,7 @@ window.onload = async function() {
   currentUser = JSON.parse(stored);
 
   await loadGroupData();
+  maybeShowNotifyBanner();
 
   const jumpTo = sessionStorage.getItem('jumpToSection');
   if (jumpTo) {
