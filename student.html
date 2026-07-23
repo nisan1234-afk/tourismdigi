@@ -223,6 +223,17 @@
     .qa-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
     .qa-status { font-size: 12px; color: var(--muted); }
 
+    /* CLASSIFY QUIZ ROW — פריט + בחירת קטגוריה. בדסקטופ זו לצד זה; במסך צר
+       הטקסט מצטמצם לעמודה כל כך צרה שמילה ארוכה נשברת למספר שורות קטועות,
+       אז מתחת ל-480px עוברים לערימה (טקסט למעלה, בורר קטגוריה ברוחב מלא). */
+    .classify-row { display: flex; align-items: center; gap: 10px; }
+    .classify-row .classify-item { flex: 1; }
+    .classify-row select.quiz-classify { width: auto; min-width: 160px; }
+    @media (max-width: 480px) {
+      .classify-row { flex-direction: column; align-items: stretch; gap: 6px; }
+      .classify-row select.quiz-classify { width: 100%; min-width: 0; }
+    }
+
     .lesson-block-game { background: linear-gradient(160deg, rgba(14,158,143,0.08), rgba(14,158,143,0.03)); border: 1px solid rgba(14,158,143,0.25); border-radius: 14px; padding: 16px; }
     .game-mount { min-height: 40px; }
     .memory-progress, .fc-progress { font-size: 12px; color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
@@ -1197,9 +1208,9 @@ function renderQuizBlock(block, glossary) {
   if (q.mode === 'classify') {
     const catOptions = (q.categories || []).map((c, i) => `<option value="${i}">${escapeHtml(c)}</option>`).join('');
     const rows = (q.items || []).map((item, i) => `
-      <div class="field-group" style="display:flex;align-items:center;gap:10px;">
-        <span style="flex:1;">${escapeHtml(item)}</span>
-        <select class="field-input quiz-classify" data-block="${block.block_id}" data-idx="${i}" style="width:auto;min-width:160px;">
+      <div class="field-group classify-row">
+        <span class="classify-item">${escapeHtml(item)}</span>
+        <select class="field-input quiz-classify" data-block="${block.block_id}" data-idx="${i}">
           <option value="">בחרו קטגוריה...</option>
           ${catOptions}
         </select>
