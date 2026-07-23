@@ -11,6 +11,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="כיתה פלוס">
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;800&family=Secular+One&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -369,6 +370,7 @@
             <option value="stuck">תקועים</option>
             <option value="done">סיימו</option>
           </select>
+          <button class="btn-sm" onclick="openBulkImportModal()">📊 ייבוא מאקסל</button>
           <button class="btn-sm btn-primary" onclick="openAddGroupModal()">+ הוסף קבוצה</button>
         </div>
       </div>
@@ -465,6 +467,30 @@
     <div class="modal-footer">
       <button class="btn-modal-cancel" onclick="hideModal('addGroupModal')">ביטול</button>
       <button class="btn-modal-confirm" onclick="addGroup()">צור קבוצה</button>
+    </div>
+  </div>
+</div>
+
+<!-- מודל ייבוא קבוצות מאקסל -->
+<div class="modal-overlay" id="bulkImportModal">
+  <div class="modal">
+    <div class="modal-title">ייבוא קבוצות מאקסל</div>
+    <div class="form-hint" style="margin-bottom:10px;">
+      שלב 1: הורידו את הטופס, מלאו שורה אחת לכל תלמיד/ה (מחקו את שורות הדוגמה).<br>
+      שלב 2: העלו את הקובץ המלא בחזרה — המערכת תיצור אוטומטית כיתות וקבוצות חדשות.
+    </div>
+    <button class="btn-sm" style="margin-bottom:14px;" onclick="downloadGroupsTemplate()">📥 הורדת טופס ריק</button>
+
+    <div class="form-group">
+      <label>העלאת הטופס המלא</label>
+      <input type="file" id="bulkImportFile" accept=".xlsx,.xls" onchange="onBulkImportFileSelected(this)" />
+    </div>
+
+    <div id="bulkImportPreview"></div>
+    <div id="bulkImportResult" style="margin-bottom:8px;font-size:13px;"></div>
+    <div class="modal-footer">
+      <button class="btn-modal-cancel" onclick="hideModal('bulkImportModal')">סגור</button>
+      <button class="btn-modal-confirm" id="bulkImportConfirmBtn" style="display:none;" onclick="confirmBulkImport()">צור קבוצות</button>
     </div>
   </div>
 </div>
@@ -1610,6 +1636,112 @@ async function addGroup() {
     hideModal('addGroupModal');
     await loadData();
   } catch(e) { resEl.textContent = 'שגיאה: ' + e.message; resEl.style.color = 'var(--error)'; }
+}
+
+let bulkImportRows = [];
+
+function openBulkImportModal() {
+  document.getElementById('bulkImportFile').value = '';
+  document.getElementById('bulkImportPreview').innerHTML = '';
+  document.getElementById('bulkImportResult').textContent = '';
+  document.getElementById('bulkImportConfirmBtn').style.display = 'none';
+  bulkImportRows = [];
+  showModal('bulkImportModal');
+}
+
+function downloadGroupsTemplate() {
+  const wsData = [
+    ['כיתה', 'שם קבוצה', 'שם התלמיד/ה', 'מייל התלמיד/ה'],
+    ['כיתה י1', 'קבוצה לדוגמה', 'דנה כהן (שורת דוגמה — מחקו אותה)', 'example1@example.com'],
+    ['כיתה י1', 'קבוצה לדוגמה', 'יוסי לוי (שורת דוגמה — מחקו אותה)', 'example2@example.com'],
+    ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', ''], ['', '', '', '']
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{ wch: 14 }, { wch: 20 }, { wch: 30 }, { wch: 28 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'קבוצות');
+  XLSX.writeFile(wb, 'טופס_ייבוא_קבוצות.xlsx');
+}
+
+function onBulkImportFileSelected(input) {
+  const file        = input.files[0];
+  const resEl       = document.getElementById('bulkImportResult');
+  const previewEl   = document.getElementById('bulkImportPreview');
+  const confirmBtn  = document.getElementById('bulkImportConfirmBtn');
+  if (!file) return;
+  resEl.textContent = ''; previewEl.innerHTML = ''; confirmBtn.style.display = 'none';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb   = XLSX.read(data, { type: 'array' });
+      const ws   = wb.Sheets[wb.SheetNames[0]];
+      const raw  = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+      const rows = [];
+      for (let i = 1; i < raw.length; i++) { // דילוג על שורת הכותרות
+        const r = raw[i];
+        const class_name    = String(r[0] || '').trim();
+        const group_name     = String(r[1] || '').trim();
+        const student_name   = String(r[2] || '').trim();
+        const student_email  = String(r[3] || '').trim().toLowerCase();
+        if (!group_name || !student_email) continue;
+        if (student_email.indexOf('@example.com') !== -1) continue; // שורת דוגמה
+        if (student_email.indexOf('@') === -1) continue;
+        rows.push({ class_name, group_name, student_name, student_email });
+      }
+
+      if (!rows.length) {
+        resEl.textContent = 'לא נמצאו שורות תקינות בקובץ — ודאו שמילאתם שם קבוצה ומייל בכל שורה';
+        resEl.style.color = 'var(--error)';
+        return;
+      }
+
+      bulkImportRows = rows;
+      const groupsMap = {};
+      rows.forEach(r => {
+        const key = r.class_name + '|' + r.group_name;
+        if (!groupsMap[key]) groupsMap[key] = { class_name: r.class_name, group_name: r.group_name, count: 0 };
+        groupsMap[key].count++;
+      });
+      const groupsList = Object.values(groupsMap);
+      previewEl.innerHTML =
+        `<div class="form-hint" style="margin-bottom:8px;">נמצאו ${groupsList.length} קבוצות, ${rows.length} תלמידים:</div>` +
+        '<ul style="font-size:13px;margin-inline-start:18px;margin-bottom:10px;">' +
+        groupsList.map(g => `<li>${escapeHtml(g.group_name)}${g.class_name ? ' (' + escapeHtml(g.class_name) + ')' : ''} — ${g.count} תלמידים</li>`).join('') +
+        '</ul>';
+      confirmBtn.style.display = 'inline-block';
+    } catch (err) {
+      resEl.textContent = 'שגיאה בקריאת הקובץ: ' + err.message;
+      resEl.style.color = 'var(--error)';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function confirmBulkImport() {
+  const resEl      = document.getElementById('bulkImportResult');
+  const confirmBtn = document.getElementById('bulkImportConfirmBtn');
+  if (!bulkImportRows.length) return;
+  resEl.textContent = 'יוצר קבוצות...'; resEl.style.color = 'var(--muted)';
+  confirmBtn.disabled = true;
+  try {
+    const data     = await callAPI('bulkImportGroups', { rows: bulkImportRows });
+    const results  = data.results || [];
+    const created  = results.filter(r => r.status === 'created');
+    const skipped  = results.filter(r => r.status === 'skipped');
+    let msg = `נוצרו ${created.length} קבוצות חדשות.`;
+    if (skipped.length) msg += ` דולגו ${skipped.length} (שם קבוצה כבר קיים: ${skipped.map(s => s.group_name).join(', ')}).`;
+    resEl.textContent = msg; resEl.style.color = 'var(--success)';
+    confirmBtn.style.display = 'none';
+    bulkImportRows = [];
+    await loadData();
+  } catch (e) {
+    resEl.textContent = 'שגיאה: ' + e.message; resEl.style.color = 'var(--error)';
+  } finally {
+    confirmBtn.disabled = false;
+  }
 }
 
 function openAddClassModal() {
